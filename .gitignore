@@ -1,0 +1,21 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+flask/
+.flask/
+
+# VSCode 설정 (옵션)
+.vscode/
+
+# Jupyter Notebook 체크포인트 (옵션)
+.ipynb_checkpoints/
+
+# 환경변수 파일 (옵션, 보안상 이유)
+.env
+
+# OS / 편집기 임시파일
+.DS_Store
+Thumbs.db
