@@ -1,2 +1,2 @@
 # FinGuard-Flask
-For Modeling
+For Serving Model
