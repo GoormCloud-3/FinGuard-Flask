@@ -4,8 +4,8 @@ __pycache__/
 *$py.class
 
 # Virtual environment
-flask/
-.flask/
+venv/
+.venv/
 
 # VSCode 설정 (옵션)
 .vscode/
