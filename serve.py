@@ -32,7 +32,7 @@ def ping():
     try:
         _ = load_model()  # check the existence of model
         return "OK", 200
-    except:
+    except Exception as e:
         return f"Model not loaded: {e}", 500
 
 #for prediction
