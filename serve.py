@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
 from flask import Flask, request, jsonify
 import joblib
 import numpy as np
 import os
 
-# for threshold branch logic
 try:
     from wrapper import XGBThresholdWrapper
     use_wrapper = True
@@ -14,28 +12,28 @@ except ImportError:
 app = Flask(__name__)
 MODEL_PATH = "/opt/ml/model/xgb_threshold_08.pkl"
 
-#load model
 model = None
+
 def load_model():
     global model
     if model is not None:
         return model
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
     if use_wrapper:
         model = XGBThresholdWrapper(joblib.load(MODEL_PATH))
     else:
         model = joblib.load(MODEL_PATH)
     return model
 
-#for health check
 @app.route('/ping', methods=['GET'])
 def ping():
     try:
-        _ = load_model()  # check the existence of model
+        _ = load_model()
         return "OK", 200
     except Exception as e:
         return f"Model not loaded: {e}", 500
 
-#for prediction
 @app.route('/invocations', methods=['POST'])
 def invoke():
     try:
@@ -43,7 +41,6 @@ def invoke():
         data = request.get_json()
         if "features" not in data:
             return jsonify({"error": "'features' field is required"}), 400
-
         features = np.array(data["features"]).reshape(1, -1)
         prob = float(model.predict_proba(features)[0][1])
         pred = int(prob > model.threshold) if hasattr(model, "threshold") else int(model.predict(features)[0])
@@ -58,3 +55,4 @@ def invoke():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
+
