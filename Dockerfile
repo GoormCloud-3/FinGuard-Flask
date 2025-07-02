@@ -1,11 +1,21 @@
-FROM python:3.9-slim
+WORKDIR /opt/program
 
-WORKDIR /app
+# system packages
+RUN apt-get update && apt-get install -y gcc libgomp1 && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+# Python packages
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy codes & model
+COPY serve.py .
+COPY wrapper.py .
 
-EXPOSE 5000
-CMD ["python", "app.py"]
+# fix port
+EXPOSE 8080
+
+#set environment
+ENV MODEL_PATH=/opt/ml/model
+
+# run
+ENTRYPOINT ["python", "serve.py"]
