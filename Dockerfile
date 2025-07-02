@@ -1,4 +1,8 @@
+FROM python:3.9-slim
+
 WORKDIR /opt/program
+
+RUN mkdir -p /opt/ml/model
 
 # system packages
 RUN apt-get update && apt-get install -y gcc libgomp1 && rm -rf /var/lib/apt/lists/*
