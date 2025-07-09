@@ -89,10 +89,16 @@ resource "aws_sagemaker_endpoint_configuration" "fraud_config" {
 	production_variants {
 		variant_name = "AllTraffic"
 		model_name = aws_sagemaker_model.fraud_model.name
-		serverless_config {
-			memory_size_in_mb = 2048
-			max_concurrency = 5
+	
+		dynamic "serverless_config" {
+			for_each = var.use_serverless ? [1] : []
+			content{
+				memory_size_in_mb = 2048
+                        	max_concurrency = 5
+			}
 		}
+		instance_type = var.use_serverless ? null : "ml.m5.large"
+		initial_instance_count = var.use_serverless ? null : 1
 	}
 
 }

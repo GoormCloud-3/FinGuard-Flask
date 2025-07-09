@@ -39,3 +39,8 @@ variable "endpoint_config_name"{
 variable "endpoint_name"{
   default = "fraud-endpoint"
 }
+variable "use_serverless" {
+  description = "Whether to use serverless inference(true) or real-time endpoint(false)"
+  type = bool
+  default = true
+}
