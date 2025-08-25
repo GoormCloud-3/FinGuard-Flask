@@ -56,7 +56,7 @@ resource "aws_iam_policy" "sagemaker_pipeline_policy" {
           			"ecr:BatchCheckLayerAvailability",
           			"ecr:DescribeImages"
         		],
-        		Resource = "arn:aws:ecr:${var.region}:${var.aws_account_id}:repository/finguard/test-serving"
+        		Resource = "arn:aws:ecr:${var.region}:${var.aws_account_id}:repository/finguard/pipeline-serving"
 		}
 		]
 	})
