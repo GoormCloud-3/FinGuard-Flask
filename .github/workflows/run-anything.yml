@@ -13,10 +13,6 @@ on:
           - serving-image           # Serving 이미지 빌드/푸시
           - destroy-infra           # IAM/Lambda 등 전체 인프라 Destroy
           - destroy-pipeline        # 파이프라인 모듈만 Destroy
-      suhyun_ref:
-        description: "suhyun 브랜치의 커밋 SHA 또는 'suhyun'"
-        required: true
-        default: "suhyun"
       environment:
         description: "환경(dev/prod 등) - 재사용 워크플로우로 전달"
         required: false
@@ -33,32 +29,32 @@ on:
 jobs:
   call-infra:
     if: ${{ github.event.inputs.target == 'infra-iam-lambda' }}
-    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/infra-iam-lambda.yml@${{ inputs.suhyun_ref }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/infra-iam-lambda.yml@suhyun
     with:
       environment: ${{ github.event.inputs.environment }}
 
   call-pipeline:
     if: ${{ github.event.inputs.target == 'pipeline-export-apply' }}
-    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/pipeline-export-apply.yml@${{ inputs.suhyun_ref }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/pipeline-export-apply.yml@suhyun
     with:
       environment: ${{ github.event.inputs.environment }}
 
   call-serving:
     if: ${{ github.event.inputs.target == 'serving-image' }}
-    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/serving-image.yml@${{ inputs.suhyun_ref }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/serving-image.yml@suhyun
     with:
       tag: ${{ github.event.inputs.tag }}
 
   call-destroy-infra:
     if: ${{ github.event.inputs.target == 'destroy-infra' }}
-    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/infra-destroy.yml@${{ inputs.suhyun_ref }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/infra-destroy.yml@suhyun
     with:
       environment: ${{ github.event.inputs.environment }}
       confirm: ${{ github.event.inputs.confirm }}
 
   call-destroy-pipeline:
     if: ${{ github.event.inputs.target == 'destroy-pipeline' }}
-    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/pipeline-destroy.yml@${{ inputs.suhyun_ref }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/pipeline-destroy.yml@suhyun
     with:
       environment: ${{ github.event.inputs.environment }}
       confirm: ${{ github.event.inputs.confirm }}
