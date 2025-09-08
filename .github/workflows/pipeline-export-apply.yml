@@ -17,10 +17,10 @@ on:
         default: "dev"
   workflow_call:
     inputs:
-    environment:
-      required: false
-      type: string
-      default: "dev"
+      environment:
+        required: false
+        type: string
+        default: "dev"
 
 concurrency:
   group: pipeline-${{ github.ref }}
