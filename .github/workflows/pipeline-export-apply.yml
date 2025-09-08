@@ -1,0 +1,74 @@
+name: Pipeline - Export & Apply
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pipeline/*.py"
+      - "pipeline/requirements.txt"
+      - "pipeline/Infra/pipeline/**"
+      - "pipeline/Infra/pipeline_definition.json"
+      - "pipeline/Infra/main.tf"
+    workflow_dispath: {}
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs: 
+  export-and-apply:
+    runs-on: ubuntu-latest
+    permissions: { id-token: write, contents: read }
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      
+       - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Install Python deps
+        working-directory: pipeline
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Terraform init (for outputs)
+        working-directory: pipeline/Infra
+        run: terraform init -input=false
+
+      - name: Compose inference image URI
+        run: |
+          echo "INFERENCE_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/finguard/pipeline-serving" >> $GITHUB_ENV
+
+      - name: Read Terraform outputs (role & lambda)
+        id: tfout
+        working-directory: Modeling_SG/pipeline/Infra
+        run: |
+          echo "SAGEMAKER_ROLE=$(terraform output -raw sagemaker_pipeline_role_arn)" >> $GITHUB_ENV
+          echo "GET_PREV_AUC_LAMBDA_ARN=$(terraform output -raw get_previous_auc_lambda_arn)" >> $GITHUB_ENV
+
+      - name: Export pipeline_definition.json
+        working-directory: Modeling_SG/pipeline
+        env:
+          SAGEMAKER_ROLE: ${{ env.SAGEMAKER_ROLE }}
+          GET_PREV_AUC_LAMBDA_ARN: ${{ env.GET_PREV_AUC_LAMBDA_ARN }}
+          INFERENCE_IMAGE_URI: ${{ env.INFERENCE_IMAGE_URI }}
+        run: |
+          set -Eeuo pipefail
+          python export_pipeline.py
+
+      - name: Terraform Apply (create/update pipeline)
+        working-directory: Modeling_SG/pipeline/Infra
+        run: |
+          set -Eeuo pipefail
+          terraform apply -auto-approve

@@ -1,0 +1,48 @@
+name: Infra - IAM & Lambda
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pipeline/Infra/iam/**"
+      - "pipeline/Infra/lambda/**"
+      - "pipeline/Infra/attach_sm_invoke_lambda.tf"
+      - "pipeline/Infra/main.tf"
+    workflow_dispatch: {}
+
+concurrency:
+  group: infra-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply-iam-lambda:
+    runs-on: ubuntu-latest
+    permissions: {id-token: write, contents: read}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with: 
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Init
+        working-directory: pipeline/Infra
+        run: terrafoorm init -input=false
+
+      - name: Apply IAM & Lambda modules only
+        working-directory: pipeline/Infra
+        run: |
+          set -Eeuo pipefail
+          terraform apply -auto-approve \
+            -target=module.iam \
+            -target=module.lambda
+      - name: Show key outputs
+        working-directory: pipeline/Infra
+        run: |
+          echo "SAGEMAKER_ROLE=${terraform output -raw sagemaker_pipeline_role_arn)"
+          echo "GET_PREV_AUC_LAMBDA_ARN=$(terraform output -raw get_previous_auc_lambda_arn)"
