@@ -6,18 +6,17 @@ on:
     paths:
       - "Modeling_SG/pipeline/Serving/**"
   workflow_dispatch:
-    workflow_dispatch:
-      inputs:
-        tag:
-          description: "이미지 태그(기본: 커밋SHA)"
-          required: false
-          default: ""
-    workflow_call:
-      inputs:
-        tag:
-          required: false
-          type: string
-          default: ""
+    inputs:
+      tag:
+        description: "이미지 태그(기본: 커밋SHA)"
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      tag:
+        required: false
+        type: string
+        default: ""
 
 concurrency:
   group: serving-${{ github.ref }}
