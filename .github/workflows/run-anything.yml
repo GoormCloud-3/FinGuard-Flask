@@ -1,0 +1,64 @@
+name: Run Anything (Dispatcher on main)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "실행 대상"
+        required: true
+        type: choice
+        options:
+          - infra-iam-lambda        # IAM/Lambda 적용
+          - pipeline-export-apply   # 파이프라인 정의 생성 & 적용
+          - serving-image           # Serving 이미지 빌드/푸시
+          - destroy-infra           # IAM/Lambda 등 전체 인프라 Destroy
+          - destroy-pipeline        # 파이프라인 모듈만 Destroy
+      suhyun_ref:
+        description: "suhyun 브랜치의 커밋 SHA 또는 'suhyun'"
+        required: true
+        default: "suhyun"
+      environment:
+        description: "환경(dev/prod 등) - 재사용 워크플로우로 전달"
+        required: false
+        default: "dev"
+      tag:
+        description: "serving-image용 이미지 태그(옵션, 미입력 시 커밋SHA)"
+        required: false
+        default: ""
+      confirm:
+        description: "Destroy/Clean 시 EXACTLY 입력: DELETE"
+        required: false
+        default: ""
+
+jobs:
+  call-infra:
+    if: ${{ inputs.target == 'infra-iam-lambda' }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/infra-iam-lambda.yml@${{ inputs.suhyun_ref }}
+    with:
+      environment: ${{ inputs.environment }}
+
+  call-pipeline:
+    if: ${{ inputs.target == 'pipeline-export-apply' }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/pipeline-export-apply.yml@${{ inputs.suhyun_ref }}
+    with:
+      environment: ${{ inputs.environment }}
+
+  call-serving:
+    if: ${{ inputs.target == 'serving-image' }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/serving-image.yml@${{ inputs.suhyun_ref }}
+    with:
+      tag: ${{ inputs.tag }}
+
+  call-destroy-infra:
+    if: ${{ inputs.target == 'destroy-infra' }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/infra-destroy.yml@${{ inputs.suhyun_ref }}
+    with:
+      environment: ${{ inputs.environment }}
+      confirm: ${{ inputs.confirm }}
+
+  call-destroy-pipeline:
+    if: ${{ inputs.target == 'destroy-pipeline' }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/pipeline-destroy.yml@${{ inputs.suhyun_ref }}
+    with:
+      environment: ${{ inputs.environment }}
+      confirm: ${{ inputs.confirm }}
