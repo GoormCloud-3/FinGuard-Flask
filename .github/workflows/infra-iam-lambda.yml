@@ -8,7 +8,18 @@ on:
       - "pipeline/Infra/lambda/**"
       - "pipeline/Infra/attach_sm_invoke_lambda.tf"
       - "pipeline/Infra/main.tf"
-    workflow_dispatch: {}
+    workflow_dispatch:
+      inputs:
+        environment:
+          description: "환경(dev/prod 등)"
+          required: false
+          default: "dev"
+    workflow_call:
+      inputs:
+        environment:
+          required: false
+          type: string
+          default: "dev"
 
 concurrency:
   group: infra-${{ github.ref }}
@@ -41,8 +52,10 @@ jobs:
           terraform apply -auto-approve \
             -target=module.iam \
             -target=module.lambda
-      - name: Show key outputs
-        working-directory: pipeline/Infra
-        run: |
-          echo "SAGEMAKER_ROLE=${terraform output -raw sagemaker_pipeline_role_arn)"
-          echo "GET_PREV_AUC_LAMBDA_ARN=$(terraform output -raw get_previous_auc_lambda_arn)"
+      - name: Read Terraform outputs (role & lambda)
+  working-directory: pipeline/Infra
+  run: |
+    set -Eeuo pipefail
+    echo "SAGEMAKER_ROLE=$(terraform output -raw sagemaker_pipeline_role_arn)" >> "$GITHUB_ENV"
+    echo "GET_PREV_AUC_LAMBDA_ARN=$(terraform output -raw get_previous_auc_lambda_arn)" >> "$GITHUB_ENV"
+

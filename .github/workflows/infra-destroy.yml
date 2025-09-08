@@ -1,0 +1,43 @@
+name: Destroy - Infra (IAM & Lambda)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "환경(dev/prod 등)"
+        required: false
+        default: "dev"
+      confirm:
+        description: "정말 삭제하려면 EXACTLY 입력: DELETE"
+        required: true
+  workflow_call:
+    inputs:
+      environment: { required: false, type: string, default: "dev" }
+      confirm:     { required: true,  type: string }
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    permissions: { id-token: write, contents: read }
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+    steps:
+      - name: Safety check
+        run: |
+          if [ "${{ inputs.confirm }}" != "DELETE" ]; then
+            echo "Type DELETE to proceed." >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: Init
+        working-directory: pipeline/Infra
+        run: terraform init -input=false
+      - name: Destroy Infra (lambda, iam)
+        working-directory: pipeline/Infra
+        run: terraform destroy -target=module.iam -target=module.lambda -auto-approve
+

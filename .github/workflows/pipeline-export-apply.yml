@@ -9,7 +9,18 @@ on:
       - "pipeline/Infra/pipeline/**"
       - "pipeline/Infra/pipeline_definition.json"
       - "pipeline/Infra/main.tf"
-  workflow_dispatch: {}   # ← 오타/위치 수정
+  workflow_dispatch: 
+    inputs:
+      environment:
+        description: "환경(dev/prod 등)"
+        required: false
+        default: "dev"
+    workflow_call:
+      inputs:
+      environment:
+        required: false
+        type: string
+        default: "dev"
 
 concurrency:
   group: pipeline-${{ github.ref }}

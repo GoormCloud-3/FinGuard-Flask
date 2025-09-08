@@ -1,0 +1,68 @@
+name: Run Anything (Manual Orchestrator)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "실행 대상"
+        required: true
+        type: choice
+        options:
+          - infra-iam-lambda
+          - pipeline-export-apply
+          - serving-image
+          - destroy-infra
+          - destroy-pipeline
+          - clean-ecr
+      environment:
+        description: "환경(dev/prod 등)"
+        required: false
+        default: "dev"
+      tag:
+        description: "serving-image용 태그(옵션)"
+        required: false
+        default: ""
+      confirm:
+        description: "Destroy/Clean 시 EXACTLY 입력: DELETE"
+        required: false
+        default: ""
+
+jobs:
+  call-infra:
+    if: ${{ inputs.target == 'infra-iam-lambda' }}
+    uses: ./.github/workflows/infra-iam-lambda.yml
+    with:
+      environment: ${{ inputs.environment }}
+
+  call-pipeline:
+    if: ${{ inputs.target == 'pipeline-export-apply' }}
+    uses: ./.github/workflows/pipeline-export-apply.yml
+    with:
+      environment: ${{ inputs.environment }}
+
+  call-serving:
+    if: ${{ inputs.target == 'serving-image' }}
+    uses: ./.github/workflows/serving-image.yml
+    with:
+      tag: ${{ inputs.tag }}
+
+  call-destroy-infra:
+    if: ${{ inputs.target == 'destroy-infra' }}
+    uses: ./.github/workflows/infra-destroy.yml
+    with:
+      environment: ${{ inputs.environment }}
+      confirm: ${{ inputs.confirm }}
+
+  call-destroy-pipeline:
+    if: ${{ inputs.target == 'destroy-pipeline' }}
+    uses: ./.github/workflows/pipeline-destroy.yml
+    with:
+      environment: ${{ inputs.environment }}
+      confirm: ${{ inputs.confirm }}
+
+  call-clean-ecr:
+    if: ${{ inputs.target == 'clean-ecr' }}
+    uses: ./.github/workflows/ecr-clean.yml
+    with:
+      confirm: ${{ inputs.confirm }}
+
