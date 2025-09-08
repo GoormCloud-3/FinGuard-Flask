@@ -8,18 +8,18 @@ on:
       - "pipeline/Infra/lambda/**"
       - "pipeline/Infra/attach_sm_invoke_lambda.tf"
       - "pipeline/Infra/main.tf"
-    workflow_dispatch:
-      inputs:
-        environment:
-          description: "환경(dev/prod 등)"
-          required: false
-          default: "dev"
-    workflow_call:
-      inputs:
-        environment:
-          required: false
-          type: string
-          default: "dev"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "환경(dev/prod 등)"
+        required: false
+        default: "dev"
+  workflow_call:
+    inputs:
+      environment:
+        required: false
+        type: string
+        default: "dev"
 
 concurrency:
   group: infra-${{ github.ref }}
