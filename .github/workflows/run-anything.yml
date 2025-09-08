@@ -24,7 +24,10 @@ on:
         description: "Destroy/Clean 시 EXACTLY 입력: DELETE"
         required: false
         default: ""
-
+        
+permissions:
+  id-token: write    
+  contents: read  
 jobs:
   call-infra:
     if: ${{ inputs.target == 'infra-iam-lambda' }}
