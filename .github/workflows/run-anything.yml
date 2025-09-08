@@ -28,34 +28,34 @@ on:
 
 jobs:
   call-infra:
-    if: ${{ github.event.inputs.target == 'infra-iam-lambda' }}
+    if: ${{ inputs.target == 'infra-iam-lambda' }}
     uses: GoormCloud-3/FinGuard-Flask/.github/workflows/infra-iam-lambda.yml@suhyun
     with:
-      environment: ${{ github.event.inputs.environment }}
+      environment: ${{ inputs.environment }}
 
   call-pipeline:
-    if: ${{ github.event.inputs.target == 'pipeline-export-apply' }}
+    if: ${{ inputs.target == 'pipeline-export-apply' }}
     uses: GoormCloud-3/FinGuard-Flask/.github/workflows/pipeline-export-apply.yml@suhyun
     with:
-      environment: ${{ github.event.inputs.environment }}
+      environment: ${{ inputs.environment }}
 
   call-serving:
-    if: ${{ github.event.inputs.target == 'serving-image' }}
+    if: ${{ inputs.target == 'serving-image' }}
     uses: GoormCloud-3/FinGuard-Flask/.github/workflows/serving-image.yml@suhyun
     with:
-      tag: ${{ github.event.inputs.tag }}
+      tag: ${{ inputs.tag }}
 
   call-destroy-infra:
-    if: ${{ github.event.inputs.target == 'destroy-infra' }}
+    if: ${{ inputs.target == 'destroy-infra' }}
     uses: GoormCloud-3/FinGuard-Flask/.github/workflows/infra-destroy.yml@suhyun
     with:
-      environment: ${{ github.event.inputs.environment }}
-      confirm: ${{ github.event.inputs.confirm }}
+      environment: ${{ inputs.environment }}
+      confirm: ${{ inputs.confirm }}
 
   call-destroy-pipeline:
-    if: ${{ github.event.inputs.target == 'destroy-pipeline' }}
+    if: ${{ inputs.target == 'destroy-pipeline' }}
     uses: GoormCloud-3/FinGuard-Flask/.github/workflows/pipeline-destroy.yml@suhyun
     with:
-      environment: ${{ github.event.inputs.environment }}
-      confirm: ${{ github.event.inputs.confirm }}
+      environment: ${{ inputs.environment }}
+      confirm: ${{ inputs.confirm }}
       
