@@ -1,5 +1,4 @@
 name: Run Anything (Dispatcher on main)
-
 on:
   workflow_dispatch:
     inputs:
