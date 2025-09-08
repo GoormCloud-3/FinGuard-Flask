@@ -28,33 +28,37 @@ on:
 jobs:
   call-infra:
     if: ${{ inputs.target == 'infra-iam-lambda' }}
-    uses: .github/workflows/infra-iam-lambda.yml
+    uses: ./.github/workflows/infra-iam-lambda.yml
     with:
       environment: ${{ inputs.environment }}
+    secrets: inherit
 
   call-pipeline:
     if: ${{ inputs.target == 'pipeline-export-apply' }}
-    uses: .github/workflows/pipeline-export-apply.yml
+    uses: ./.github/workflows/pipeline-export-apply.yml
     with:
       environment: ${{ inputs.environment }}
+    secrets: inherit
 
   call-serving:
     if: ${{ inputs.target == 'serving-image' }}
-    uses: .github/workflows/serving-image.yml
+    uses: ./.github/workflows/serving-image.yml
     with:
       tag: ${{ inputs.tag }}
+    secrets: inherit
 
   call-destroy-infra:
     if: ${{ inputs.target == 'destroy-infra' }}
-    uses: .github/workflows/infra-destroy.yml
+    uses: ./.github/workflows/infra-destroy.yml
     with:
       environment: ${{ inputs.environment }}
       confirm: ${{ inputs.confirm }}
+    secrets: inherit
 
   call-destroy-pipeline:
     if: ${{ inputs.target == 'destroy-pipeline' }}
-    uses: .github/workflows/pipeline-destroy.yml
+    uses: ./.github/workflows/pipeline-destroy.yml
     with:
       environment: ${{ inputs.environment }}
       confirm: ${{ inputs.confirm }}
-
+    secrets: inherit
