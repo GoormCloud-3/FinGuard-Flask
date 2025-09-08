@@ -53,9 +53,9 @@ jobs:
             -target=module.iam \
             -target=module.lambda
       - name: Read Terraform outputs (role & lambda)
-  working-directory: pipeline/Infra
-  run: |
-    set -Eeuo pipefail
-    echo "SAGEMAKER_ROLE=$(terraform output -raw sagemaker_pipeline_role_arn)" >> "$GITHUB_ENV"
-    echo "GET_PREV_AUC_LAMBDA_ARN=$(terraform output -raw get_previous_auc_lambda_arn)" >> "$GITHUB_ENV"
+        working-directory: pipeline/Infra
+        run: |
+          set -Eeuo pipefail
+          echo "SAGEMAKER_ROLE=$(terraform output -raw sagemaker_pipeline_role_arn)" >> "$GITHUB_ENV"
+          echo "GET_PREV_AUC_LAMBDA_ARN=$(terraform output -raw get_previous_auc_lambda_arn)" >> "$GITHUB_ENV"
 
