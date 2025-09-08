@@ -32,7 +32,7 @@ jobs:
 
       - name: Init
         working-directory: pipeline/Infra
-        run: terrafoorm init -input=false
+        run: terraform init -input=false
 
       - name: Apply IAM & Lambda modules only
         working-directory: pipeline/Infra
