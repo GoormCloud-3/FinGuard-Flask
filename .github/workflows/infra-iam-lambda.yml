@@ -2,7 +2,7 @@ name: Infra - IAM & Lambda
 
 on:
   push:
-    branches: [main]
+    branches: [main, suhyun]
     paths:
       - "pipeline/Infra/iam/**"
       - "pipeline/Infra/lambda/**"

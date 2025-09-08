@@ -1,20 +1,21 @@
 name: Pipeline - Export & Apply
+
 on:
   push:
-    branches: [main]
+    branches: [ main, suhyun ]
     paths:
       - "pipeline/*.py"
       - "pipeline/requirements.txt"
       - "pipeline/Infra/pipeline/**"
       - "pipeline/Infra/pipeline_definition.json"
       - "pipeline/Infra/main.tf"
-    workflow_dispath: {}
+  workflow_dispatch: {}   # ← 오타/위치 수정
 
 concurrency:
   group: pipeline-${{ github.ref }}
   cancel-in-progress: false
 
-jobs: 
+jobs:
   export-and-apply:
     runs-on: ubuntu-latest
     permissions: { id-token: write, contents: read }
@@ -28,12 +29,13 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      
-       - name: Setup Terraform
+        with:
+          python-version: "3.11"
+
+      - name: Setup Terraform   # ← 들여쓰기 정렬
         uses: hashicorp/setup-terraform@v3
 
       - name: Install Python deps
@@ -51,14 +53,13 @@ jobs:
           echo "INFERENCE_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/finguard/pipeline-serving" >> $GITHUB_ENV
 
       - name: Read Terraform outputs (role & lambda)
-        id: tfout
-        working-directory: Modeling_SG/pipeline/Infra
+        working-directory: pipeline/Infra
         run: |
           echo "SAGEMAKER_ROLE=$(terraform output -raw sagemaker_pipeline_role_arn)" >> $GITHUB_ENV
           echo "GET_PREV_AUC_LAMBDA_ARN=$(terraform output -raw get_previous_auc_lambda_arn)" >> $GITHUB_ENV
 
       - name: Export pipeline_definition.json
-        working-directory: Modeling_SG/pipeline
+        working-directory: pipeline
         env:
           SAGEMAKER_ROLE: ${{ env.SAGEMAKER_ROLE }}
           GET_PREV_AUC_LAMBDA_ARN: ${{ env.GET_PREV_AUC_LAMBDA_ARN }}
@@ -68,7 +69,8 @@ jobs:
           python export_pipeline.py
 
       - name: Terraform Apply (create/update pipeline)
-        working-directory: Modeling_SG/pipeline/Infra
+        working-directory: pipeline/Infra
         run: |
           set -Eeuo pipefail
           terraform apply -auto-approve
+

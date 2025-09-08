@@ -2,7 +2,7 @@ name: Serving - Build & Push Image
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, suhyun ]
     paths:
       - "Modeling_SG/pipeline/Serving/**"
   workflow_dispatch: {}
