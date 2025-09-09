@@ -43,8 +43,13 @@ jobs:
 
       - name: Init
         working-directory: pipeline/Infra
-        run: terraform init -input=false
-
+        run: |
+        terraform init -input=false -reconfigure -backend-config=".github/terraform/backend.hcl"
+      - name: Select workspace
+        working-directory: pipeline/Infra
+        run: |
+          terraform workspace select "${{ inputs.environment }}" \
+            || terraform workspace new "${{ inputs.environment }}"
       - name: Apply IAM & Lambda modules only
         working-directory: pipeline/Infra
         run: |
