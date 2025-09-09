@@ -50,12 +50,24 @@ jobs:
         run: |
           terraform workspace select "${{ inputs.environment }}" \
             || terraform workspace new "${{ inputs.environment }}"
-      - name: Force-unlock stale state lock (safe to ignore if none)
+      - name: Force-unlock stale lock if exists (auto)
         working-directory: pipeline/Infra
         run: |
           set -Eeuo pipefail
-          LOCK_ID="finguard-model-artifacts/env:/${{ inputs.environment }}/sagemaker-pipeline/infra.tfstate"
-          terraform force-unlock -force "$LOCK_ID" || true
+          TABLE="terraform-lock"
+          KEY="finguard-model-artifacts/env:/${{ inputs.environment }}/sagemaker-pipeline/infra.tfstate"
+
+          ITEM=$(aws dynamodb get-item --table-name "$TABLE" \
+            --key "{\"LockID\":{\"S\":\"$KEY\"}}" --output json || true)
+
+          ID=$(echo "$ITEM" | jq -r '.Item.Info.S? | fromjson? | .ID // empty')
+
+          if [ -n "$ID" ]; then
+            echo "Found stale lock with ID=$ID, unlocking..."
+            terraform force-unlock -force "$ID" || true
+          else
+            echo "No active lock found for $KEY"
+          fi
       - name: Apply IAM & Lambda modules only
         working-directory: pipeline/Infra
         run: |
