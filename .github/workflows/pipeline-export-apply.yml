@@ -71,13 +71,13 @@ jobs:
       - name: Read Terraform outputs (role & lambda)
         working-directory: pipeline/Infra
         run: |
-          echo "SAGEMAKER_ROLE=$(terraform output -raw sagemaker_pipeline_role_arn)" >> $GITHUB_ENV
+          echo "SAGEMAKER_JOB_ROLE=$(terraform output -raw sagemaker_job_role_arn)" >> $GITHUB_ENV
           echo "GET_PREV_AUC_LAMBDA_ARN=$(terraform output -raw get_previous_auc_lambda_arn)" >> $GITHUB_ENV
 
       - name: Export pipeline_definition.json
         working-directory: pipeline
         env:
-          SAGEMAKER_ROLE: ${{ env.SAGEMAKER_ROLE }}
+          SAGEMAKER_JOB_ROLE: ${{ env.SAGEMAKER_JOB_ROLE }}
           GET_PREV_AUC_LAMBDA_ARN: ${{ env.GET_PREV_AUC_LAMBDA_ARN }}
           INFERENCE_IMAGE_URI: ${{ env.INFERENCE_IMAGE_URI }}
         run: |
