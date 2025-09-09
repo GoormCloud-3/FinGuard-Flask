@@ -23,8 +23,8 @@ on:
         default: "dev"
 
 concurrency:
-  group: pipeline-${{ github.ref }}
-  cancel-in-progress: false
+  group: pipeline-${{ inputs.environment }}
+  cancel-in-progress: true
 
 jobs:
   export-and-apply:
@@ -64,6 +64,12 @@ jobs:
         run: |
           terraform workspace select "${{ inputs.environment }}" \
             || terraform workspace new "${{ inputs.environment }}"
+      - name: Force-unlock stale state lock (safe to ignore if none)
+        working-directory: pipeline/Infra
+        run: |
+          set -Eeuo pipefail
+          LOCK_ID="finguard-model-artifacts/env:/${{ inputs.environment }}/sagemaker-pipeline/infra.tfstate"
+          terraform force-unlock -force "$LOCK_ID" || true
       - name: Compose inference image URI
         run: |
           echo "INFERENCE_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/finguard/pipeline-serving" >> $GITHUB_ENV

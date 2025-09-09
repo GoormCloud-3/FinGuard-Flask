@@ -22,8 +22,8 @@ on:
         default: "dev"
 
 concurrency:
-  group: infra-${{ github.ref }}
-  cancel-in-progress: false
+  group: pipeline-${{ inputs.environment }}
+  cancel-in-progress: true
 
 jobs:
   apply-iam-lambda:
@@ -50,6 +50,12 @@ jobs:
         run: |
           terraform workspace select "${{ inputs.environment }}" \
             || terraform workspace new "${{ inputs.environment }}"
+      - name: Force-unlock stale state lock (safe to ignore if none)
+        working-directory: pipeline/Infra
+        run: |
+          set -Eeuo pipefail
+          LOCK_ID="finguard-model-artifacts/env:/${{ inputs.environment }}/sagemaker-pipeline/infra.tfstate"
+          terraform force-unlock -force "$LOCK_ID" || true
       - name: Apply IAM & Lambda modules only
         working-directory: pipeline/Infra
         run: |

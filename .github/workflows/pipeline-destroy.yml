@@ -15,6 +15,10 @@ on:
       environment: { required: false, type: string, default: "dev" }
       confirm:     { required: true,  type: string }
 
+concurrency:
+  group: pipeline-${{ inputs.environment }}
+  cancel-in-progress: true
+
 jobs:
   destroy-pipeline:
     runs-on: ubuntu-latest
