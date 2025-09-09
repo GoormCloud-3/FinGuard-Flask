@@ -3,6 +3,6 @@ variable "aws_region" {
   description = "AWS region"
 }
 
-variable "pipeline_definition_json" {
+variable "pipeline_definition_path" {
   type = string
 }

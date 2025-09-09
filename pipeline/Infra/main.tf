@@ -15,7 +15,7 @@ module "lambda" {
 module "pipeline" {
 	source = "./pipeline"
 	sagemaker_role_arn = module.iam.sagemaker_pipeline_role_arn
-	pipeline_definition_json = var.pipeline_definition_json
+	pipeline_definition_json = file(var.pipeline_definition_path)
 	depends_on = [
 		module.iam, 
 		module.lambda,
