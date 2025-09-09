@@ -83,7 +83,19 @@ jobs:
         run: |
           set -Eeuo pipefail
           python export_pipeline.py
+      
+      - name: Set TF_VAR_pipeline_definition_json from file
+        working-directory: pipeline
+        run: |
+          set -Eeuo pipefail
+          OUT="../Infra/pipeline_definition.json"
+          test -f "$OUT" || { echo "::error::File not found: $OUT"; ls -al .. ../Infra ../Infra/pipeline || true; exit 1; }
 
+          {
+            echo "TF_VAR_pipeline_definition_json<<'EOF'"
+            cat "$OUT"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
       - name: Terraform Apply (create/update pipeline)
         working-directory: pipeline/Infra
         run: |
