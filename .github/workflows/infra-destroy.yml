@@ -48,5 +48,5 @@ jobs:
             || terraform workspace new "${{ inputs.environment }}"
       - name: Destroy Infra (lambda, iam)
         working-directory: pipeline/Infra
-        run: terraform destroy -target=module.iam -target=module.lambda -auto-approve
+        run: terraform destroy -auto-approve
 
