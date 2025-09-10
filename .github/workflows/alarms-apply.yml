@@ -59,7 +59,7 @@ jobs:
         run: terraform init -input=false -reconfigure -backend-config="${{ github.workspace }}/.github/terraform/backend.hcl"
 
       - name: Select workspace
-        working-directory: pipeline/Infra
+        working-directory: Endpoint_Infra
         run: |
           terraform workspace select "${{ inputs.environment }}" \
             || terraform workspace new "${{ inputs.environment }}"
