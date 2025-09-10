@@ -54,11 +54,15 @@ jobs:
         working-directory: Endpoint_Infra
         run: terraform init -input=false -reconfigure -backend-config="../.github/terraform/backend.hcl"
 
-      - name: Select workspace
+      - name: Select or create workspace
         working-directory: Endpoint_Infra
         run: |
-          terraform workspace select "${{ github.event.inputs.environment || 'dev' }}" \
-            || terraform workspace new "${{ github.event.inputs.environment || 'dev' }}"
+          WS="${{ github.event.inputs.environment || 'dev' }}"
+          echo "Using workspace: $WS"
+          if ! terraform workspace select "$WS"; then
+            terraform workspace new "$WS"
+          fi
+          terraform workspace show
 
       # for_each 모듈이라면 target=module.endpoint_alarms 로 전체 삭제 가능
       - name: Terraform destroy (alarms only)
