@@ -1,3 +1,9 @@
+locals {
+  pipeline_def_json = (
+    var.pipeline_definition_json != null && trim(var.pipeline_definition_json) != ""
+  ) ? var.pipeline_definition_json : "{}"
+}
+
 resource "aws_sagemaker_pipeline" "fraud_pipenline" {
 	pipeline_name = "FraudDetectionPipeline"
 	pipeline_display_name = "Fraud-Detection-Pipeline"
