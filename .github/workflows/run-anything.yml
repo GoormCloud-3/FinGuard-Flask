@@ -61,3 +61,18 @@ jobs:
       environment: ${{ inputs.environment }}
       confirm: ${{ inputs.confirm }}
       
+  call-alarms-apply:
+    if: ${{ github.event.inputs.target == 'alarms-apply' }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/alarms-apply.yml@suhyun
+    with:
+      environment: ${{ github.event.inputs.environment }}
+      mode: apply
+    secrets: inherit
+
+  call-alarms-destroy:
+    if: ${{ github.event.inputs.target == 'alarms-destroy' }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/alarms-destroy.yml@suhyun
+    with:
+      environment: ${{ github.event.inputs.environment }}
+      confirm: ${{ github.event.inputs.confirm }}
+    secrets: inherit
