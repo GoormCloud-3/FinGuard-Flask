@@ -1,7 +1,6 @@
 locals {
-  pipeline_def_json = (
-    var.pipeline_definition_json != null && trim(var.pipeline_definition_json) != ""
-  ) ? var.pipeline_definition_json : "{}"
+  has_def           = var.pipeline_definition_json != null && length(trimspace(var.pipeline_definition_json)) > 0
+  pipeline_def_json = local.has_def ? var.pipeline_definition_json : "{}"
 }
 
 resource "aws_sagemaker_pipeline" "fraud_pipenline" {
