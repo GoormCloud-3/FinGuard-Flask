@@ -12,6 +12,10 @@ on:
           - serving-image           # Serving 이미지 빌드/푸시
           - destroy-infra           # IAM/Lambda 등 전체 인프라 Destroy
           - destroy-pipeline        # 파이프라인 모듈만 Destroy
+          - alarms-apply            # Endpoint staging/prod + monitor 생성
+          - alarms-destroy          # Endpoint staging/prod + monitor Destroy
+          - baseline-generate       # 초기 학습데이터에 대한 baseline 생성 (1회만)
+          
       environment:
         description: "환경(dev/prod 등) - 재사용 워크플로우로 전달"
         required: false
@@ -62,17 +66,26 @@ jobs:
       confirm: ${{ inputs.confirm }}
       
   call-alarms-apply:
-    if: ${{ github.event.inputs.target == 'alarms-apply' }}
+    if: ${{ inputs.target == 'alarms-apply' }}
     uses: GoormCloud-3/FinGuard-Flask/.github/workflows/alarms-apply.yml@suhyun
     with:
-      environment: ${{ github.event.inputs.environment }}
+      environment: ${{ inputs.environment }}
       mode: apply
     secrets: inherit
 
   call-alarms-destroy:
-    if: ${{ github.event.inputs.target == 'alarms-destroy' }}
+    if: ${{ inputs.target == 'alarms-destroy' }}
     uses: GoormCloud-3/FinGuard-Flask/.github/workflows/alarms-destroy.yml@suhyun
     with:
-      environment: ${{ github.event.inputs.environment }}
-      confirm: ${{ github.event.inputs.confirm }}
+      environment: ${{ inputs.environment }}
+      confirm: ${{ inputs.confirm }}
+    secrets: inherit
+
+  call-baseline-generate:
+    if: ${{ inputs.target == 'baseline-generate' }}
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/model-baseline.yml@suhyun
+    with:
+      dataset_s3: ${{ inputs.dataset_s3 }}
+      baseline_prefix: ${{ inputs.baseline_prefix }}
+      instance_type: ${{ inputs.instance_type }}
     secrets: inherit
