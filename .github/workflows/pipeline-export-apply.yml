@@ -90,6 +90,7 @@ jobs:
           set -Eeuo pipefail
           OUT="../Infra/pipeline_definition.json"
           python3 export_pipeline.py --output "$OUT"
+          echo "TF_VAR_enable_pipeline=true" >> $GITHUB_ENV
           echo "TF_VAR_pipeline_definition_path=$OUT" >> $GITHUB_ENV
       - name: Terraform Apply (create/update pipeline)
         working-directory: pipeline/Infra

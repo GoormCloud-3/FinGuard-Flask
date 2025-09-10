@@ -5,4 +5,10 @@ variable "aws_region" {
 
 variable "pipeline_definition_path" {
   type = string
+  default = ""
+}
+
+variable "enable_pipeline" {
+  type = bool
+  default = false
 }
