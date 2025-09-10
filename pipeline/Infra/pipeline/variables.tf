@@ -4,4 +4,5 @@ variable "sagemaker_role_arn" {
 
 variable "pipeline_definition_json" {
   type = string
+  default = null
 }
