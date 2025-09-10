@@ -13,6 +13,9 @@ on:
           - serving-image
           - destroy-infra
           - destroy-pipeline
+          - alarms-apply
+          - alarms-destroy
+          - baseline-generate
       environment:
         description: "환경(dev/prod 등)"
         required: false
@@ -25,6 +28,18 @@ on:
         description: "Destroy/Clean 시 EXACTLY 입력: DELETE"
         required: false
         default: ""
+      dataset_s3:
+        description: "학습데이터 S3 URI (CSV/JSONL)"
+        required: false
+        default: ""
+      baseline_prefix:
+        description: "Baseline 저장 S3 prefix (끝에 /)"
+        required: false
+        default: ""
+      instance_type:
+        description: "Processing 인스턴스"
+        required: false
+        default: "ml.m5.xlarge"
 
 permissions:
   id-token: write 
@@ -66,4 +81,29 @@ jobs:
     with:
       environment: ${{ inputs.environment }}
       confirm: ${{ inputs.confirm }}
+    secrets: inherit
+
+  call-alarms-apply:
+    if: ${{ github.event.inputs.target == 'alarms-apply' }}
+    uses: ./.github/workflows/alarms-apply.yml
+    with:
+      environment: ${{ inputs.environment }}
+      mode: apply
+    secrets: inherit
+
+  call-alarms-destroy:
+    if: ${{ github.event.inputs.target == 'alarms-destroy' }}
+    uses: ./.github/workflows/alarms-destroy.yml
+    with:
+      environment: ${{ inputs.environment }}
+      confirm: ${{ inputs.confirm }}
+    secrets: inherit
+
+  call-baseline-generate:
+    if: ${{ inputs.target == 'baseline-generate' }}
+    uses: ./.github/workflows/model-baseline.yml
+    with:
+      dataset_s3: ${{ inputs.dataset_s3 }}
+      baseline_prefix: ${{ inputs.baseline_prefix }}
+      instance_type: ${{ inputs.instance_type }}
     secrets: inherit

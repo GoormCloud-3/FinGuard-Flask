@@ -1,0 +1,100 @@
+name: Model Promotion (Staging → Prod with Approval)
+
+on:
+  repository_dispatch:
+    types: [model-approved]
+  workflow_dispatch:
+    inputs:
+      model_package_arn:
+        description: "Model Package ARN (수동 실행)"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install deps
+        run: pip install boto3
+
+      - name: Resolve model package arn
+        run: |
+          if [ -n "${{ github.event.client_payload.model_package_arn }}" ]; then
+            echo "PKG=${{ github.event.client_payload.model_package_arn }}" >> $GITHUB_ENV
+          else
+            echo "PKG=${{ inputs.model_package_arn }}" >> $GITHUB_ENV
+          fi
+    
+      - name: Compose inference image URI
+        run: |
+          echo "INFERENCE_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/finguard/pipeline-serving" >> $GITHUB_ENV
+
+      - name: Deploy to STAGING (Blue/Green Canary)
+        env:
+          CAPTURE_S3_URI: s3://finguard-model-artifacts/datacapture/staging/
+          INFERENCE_IMAGE_URI: ${{ env.INFERENCE_IMAGE_URI }}
+        run: |
+          python .github/scripts/deploy_blue_green.py \
+            --endpoint "${{ vars.ENDPOINT_STAGING }}" \
+            --package "${{ env.PKG }}" \
+            --image   "${{ env.INFERENCE_IMAGE_URI }}" \
+            --exec-role "${{ secrets.SAGEMAKER_EXEC_ROLE_ARN || vars.SAGEMAKER_EXEC_ROLE_ARN }}" \
+            --alarm-5xx  "" \
+            --alarm-latency "" \
+            --instance-type "ml.m5.large" \
+            --instance-count 1 \
+            --canary-percent 20 \
+            --canary-wait 300 \
+            --termination-wait 120
+
+      # smoke test (simple)
+      - name: Wait few seconds
+        run: sleep 10
+      - name: Smoke test placeholder
+        run: echo "call your health-check here"
+
+  promote-prod:
+    needs: [deploy-staging]
+    runs-on: ubuntu-latest
+    environment: production  # ← need manual approve
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install deps
+        run: pip install boto3
+
+      - name: Compose inference image URI
+        run: |
+          echo "INFERENCE_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/finguard/pipeline-serving" >> $GITHUB_ENV
+
+      - name: Deploy to PROD (Blue/Green + AutoRollback)
+        env: 
+          CAPTURE_S3_URI: s3://finguard-model-artifacts/datacapture/prod/
+          INFERENCE_IMAGE_URI: ${{ env.INFERENCE_IMAGE_URI }}
+        run: |
+          python .github/scripts/deploy_blue_green.py \
+            --endpoint "${{ vars.ENDPOINT_PROD }}" \
+            --package "${{ env.PKG }}" \
+            --image   "${{ env.INFERENCE_IMAGE_URI }}" \
+            --exec-role "${{ secrets.SAGEMAKER_EXEC_ROLE_ARN || vars.SAGEMAKER_EXEC_ROLE_ARN }}" \
+            --alarm-5xx "" \
+            --alarm-latency "" \
+            --instance-type "ml.m5.large" \
+            --instance-count 2 \
+            --canary-percent 10 \
+            --canary-wait 600 \
+            --termination-wait 300
+
