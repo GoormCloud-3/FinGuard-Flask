@@ -28,6 +28,18 @@ on:
         description: "Destroy/Clean 시 EXACTLY 입력: DELETE"
         required: false
         default: ""
+      dataset_s3:
+        description: "학습데이터 S3 URI (CSV/JSONL)"
+        required: false
+        default: ""
+      baseline_prefix:
+        description: "Baseline 저장 S3 prefix (끝에 /)"
+        required: false
+        default: ""
+      instance_type:
+        description: "Processing 인스턴스"
+        required: false
+        default: "ml.m5.xlarge"
         
 permissions:
   id-token: write    
