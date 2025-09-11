@@ -1,6 +1,6 @@
 # (1) Data Quality Job Definition
 resource "aws_sagemaker_data_quality_job_definition" "dq" {
-  job_definition_name = "${var.endpoint_name}-dq-jobdef"
+  # job_definition_name = "${var.endpoint_name}-dq-jobdef"
   data_quality_app_specification {
     image_uri = var.monitor_image_uri
   }
@@ -17,7 +17,7 @@ resource "aws_sagemaker_data_quality_job_definition" "dq" {
       endpoint_name   = var.endpoint_name
       local_path      = "/opt/ml/processing/input"
       s3_input_mode   = "File"
-      probability_threshold_attribute = 0.0
+      # probability_threshold_attribute = 0.0
       # dataset_format { json { line = true } }  # JSONLines 사용 시
     }
   }

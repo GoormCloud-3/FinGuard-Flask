@@ -1,5 +1,5 @@
 output "dq_job_definition" {
-  value = aws_sagemaker_data_quality_job_definition.dq.job_definition_name
+  value = aws_sagemaker_data_quality_job_definition.dq.name
 }
 output "dq_schedule_name" { 
  value = aws_sagemaker_monitoring_schedule.dq_schedule.monitoring_schedule_name 
