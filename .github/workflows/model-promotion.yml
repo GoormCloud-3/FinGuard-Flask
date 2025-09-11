@@ -3,103 +3,13 @@ name: Model Promotion (Staging → Prod with Approval)
 on:
   repository_dispatch:
     types: [model-approved]
-  workflow_dispatch:
-    inputs:
-      model_package_arn:
-        description: "Model Package ARN (비워두면 Registry에서 최신 Approved 자동 선택)"
-        required: false
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  deploy-staging:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Install deps
-        run: pip install boto3
-
-      - name: Resolve model package arn
-        id: resolve
-        run: |
-          if [ -n "${{ inputs.model_package_arn }}" ]; then
-            echo "PKG=${{ inputs.model_package_arn }}" >> $GITHUB_ENV
-          elif [ -n "${{ github.event.client_payload.model_package_arn }}" ]; then
-            echo "PKG=${{ github.event.client_payload.model_package_arn }}" >> $GITHUB_ENV
-          else
-            echo "Auto-detecting latest Approved model..."
-            ARN=$(aws sagemaker list-model-packages \
-              --model-package-group-name "${{ vars.MODEL_PACKAGE_GROUP }}" \
-              --query "ModelPackageSummaryList[?ModelApprovalStatus=='Approved']|[0].ModelPackageArn" \
-              --output text)
-            if [ "$ARN" = "None" ]; then
-              echo "❌ No Approved model found in Registry"
-              exit 1
-            fi
-            echo "PKG=$ARN" >> $GITHUB_ENV
-          fi
-
-      - name: Compose inference image URI
-        run: |
-          echo "INFERENCE_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/finguard/pipeline-serving" >> $GITHUB_ENV
-
-      - name: Deploy to STAGING (Blue/Green Canary)
-        env:
-          CAPTURE_S3_URI: s3://finguard-model-artifacts/datacapture/staging/
-          INFERENCE_IMAGE_URI: ${{ env.INFERENCE_IMAGE_URI }}
-        run: |
-          python .github/scripts/deploy_blue_green.py \
-            --endpoint "${{ vars.ENDPOINT_STAGING }}" \
-            --image   "${{ env.INFERENCE_IMAGE_URI }}" \
-            --exec-role "${{ secrets.SAGEMAKER_EXEC_ROLE_ARN || vars.SAGEMAKER_EXEC_ROLE_ARN }}" \
-            --model-prefix "s3://finguard-model-artifacts/model/" \
-            --alarm-5xx  "" \
-            --alarm-latency "" \
-            --instance-type "ml.m5.large" \
-            --instance-count 1 \
-            --canary-percent 20 \
-            --canary-wait 300 \
-            --termination-wait 120
-
-  promote-prod:
-    needs: [deploy-staging]
-    runs-on: ubuntu-latest
-    environment: production   # ← 여기서 수동 승인 필요
-    steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Install deps
-        run: pip install boto3
-
-      - name: Compose inference image URI
-        run: |
-          echo "INFERENCE_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/finguard/pipeline-serving" >> $GITHUB_ENV
-
-      - name: Deploy to PROD (Blue/Green + AutoRollback)
-        env: 
-          CAPTURE_S3_URI: s3://finguard-model-artifacts/datacapture/prod/
-          INFERENCE_IMAGE_URI: ${{ env.INFERENCE_IMAGE_URI }}
-        run: |
-          python .github/scripts/deploy_blue_green.py \
-            --endpoint "${{ vars.ENDPOINT_PROD }}" \
-            --image   "${{ env.INFERENCE_IMAGE_URI }}" \
-            --exec-role "${{ secrets.SAGEMAKER_EXEC_ROLE_ARN || vars.SAGEMAKER_EXEC_ROLE_ARN }}" \
-            --model-prefix "s3://finguard-model-artifacts/model/" \
-            --alarm-5xx "" \
-            --alarm-latency "" \
-            --instance-type "ml.m5.large" \
-            --instance-count 2 \
-            --canary-percent 10 \
-            --canary-wait 600 \
-            --termination-wait 300
+  call-real-one:
+    uses: <OWNER>/<REPO>/.github/workflows/real.yml@your-feature-branch  # ★ 브랜치 지정
+    with:
+      model_package_arn: ${{ github.event.client_payload.model_package_arn }}
