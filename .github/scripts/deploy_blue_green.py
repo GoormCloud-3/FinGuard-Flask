@@ -116,36 +116,41 @@ def deploy(endpoint_name, image_uri, model_data_url, model_prefix, exec_role,
             raise
 
     # ── 5) Blue/Green config
+    if not exists:
+    # ── 5.1) 최초 생성 (Alarm/BlueGreen 불가)
+    sm.create_endpoint(EndpointName=endpoint_name, EndpointConfigName=cfg_name)
+    _wait_endpoint(endpoint_name, "InService")
+else:
+    # ── 5.2) 업데이트 배포 (Alarm + BlueGreen 가능)
+    cp = int(round(float(canary_percent)))
+    cp = max(1, min(100, cp))
+    deploy_cfg = {
+        "BlueGreenUpdatePolicy": {
+            "TrafficRoutingConfiguration": {
+                "Type": "CANARY",
+                "WaitIntervalInSeconds": int(canary_wait),
+                "CanarySize": {"Type": "CAPACITY_PERCENT", "Value": cp},
+            },
+            "TerminationWaitInSeconds": int(term_wait),
+        }
+    }
+
     alarms = []
     a5 = alarm5 or f"{endpoint_name}-5xx"
     al = alarm_latency or f"{endpoint_name}-latency-p95"
-    if a5: alarms.append({"AlarmName": a5})
-    if al: alarms.append({"AlarmName": al})
-    cp = int(round(float(canary_percent)))
-    cp = max(1, min(50, cp))  # 최소 1~최대 100로 클램프(혹은 5~50로 제한하려면 max(5, min(50, cp)))
+    if a5:
+        alarms.append({"AlarmName": a5})
+    if al:
+        alarms.append({"AlarmName": al})
+    if alarms:
+        deploy_cfg["AutoRollbackConfiguration"] = {"Alarms": alarms}
 
-    deploy_cfg = {
-      "BlueGreenUpdatePolicy": {
-        "TrafficRoutingConfiguration": {
-            "Type": "CANARY",
-            "WaitIntervalInSeconds": int(canary_wait),
-            "CanarySize": {"Type": "CAPACITY_PERCENT", "Value": cp},  # ← int!
-        },
-        "TerminationWaitInSeconds": int(term_wait),
-       }
-    }
-    # ── 6) Create or Update
-    if not exists:
-        sm.create_endpoint(EndpointName=endpoint_name, EndpointConfigName=cfg_name)
-        _wait_endpoint(endpoint_name, "InService")
-        # (선택) 동일 컨피그 재적용하여 Blue/Green 정책 세팅
-        sm.update_endpoint(EndpointName=endpoint_name, EndpointConfigName=cfg_name, DeploymentConfig=deploy_cfg)
-        _wait_endpoint(endpoint_name, "InService")
-    else:
-        sm.update_endpoint(EndpointName=endpoint_name, EndpointConfigName=cfg_name, DeploymentConfig=deploy_cfg)
-        _wait_endpoint(endpoint_name, "InService")
-
-    print(f"deployed model={model_name}, config={cfg_name}, endpoint={endpoint_name}, model_data={model_data_url}")
+    sm.update_endpoint(
+        EndpointName=endpoint_name,
+        EndpointConfigName=cfg_name,   # 반드시 새로운 이름
+        DeploymentConfig=deploy_cfg
+    )
+    _wait_endpoint(endpoint_name, "InService")
 
 if __name__ == "__main__":
     import time
