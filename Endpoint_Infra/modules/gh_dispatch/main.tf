@@ -8,6 +8,13 @@ data "aws_iam_policy_document" "lambda_assume" {
   }
 }
 
+# build handler.py to zip
+data "archive_file" "gh_dispatch" {
+  type        = "zip"
+  source_file = "${path.module}/lambda/handler.py"
+  output_path = "${path.module}/lambda/gh_dispatch.zip"
+}
+
 resource "aws_iam_role" "lambda" {
   name               = "${var.function_name}-role"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
@@ -33,8 +40,8 @@ resource "aws_lambda_function" "this" {
   role          = aws_iam_role.lambda.arn
   timeout       = 30
 
-  filename      = "${path.module}/lambda/gh_sm_dispatch.zip"
-  source_code_hash = filebase64sha256("${path.module}/lambda/gh_sm_dispatch.zip")
+  filename         = data.archive_file.gh_dispatch.output_path
+  source_code_hash = data.archive_file.gh_dispatch.output_base64sha256
 
   environment {
     variables = {
