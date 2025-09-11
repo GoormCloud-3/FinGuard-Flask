@@ -38,6 +38,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
       - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
       - name: Init
         working-directory: pipeline/Infra
         run: terraform init -input=false -reconfigure -backend-config="${{ github.workspace }}/.github/terraform/backend.hcl"

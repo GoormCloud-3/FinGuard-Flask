@@ -40,6 +40,8 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
 
       - name: Init
         working-directory: pipeline/Infra
@@ -52,22 +54,32 @@ jobs:
             || terraform workspace new "${{ inputs.environment }}"
       - name: Force-unlock stale lock if exists (auto)
         working-directory: pipeline/Infra
+        env: 
+          TFSTATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
+          TF_LOCK_TABLE:  ${{ vars.TF_LOCK_TABLE }}         
+          WS:             ${{ inputs.environment || 'dev' }}
         run: |
           set -Eeuo pipefail
+          PREFIX="sm-infra"
           TABLE="terraform-lock"
-          KEY="finguard-model-artifacts/env:/${{ inputs.environment }}/sagemaker-pipeline/infra.tfstate"
+          KEY_PATH="${PREFIX}/${WS}/infra.tfstate"
+          echo "Looking for lock: table=${TF_LOCK_TABLE}, LockID=${LOCK_ID}"
+          
+          ITEM_JSON="$(aws dynamodb get-item \
+            --table-name "${TF_LOCK_TABLE}" \
+            --key "{\"LockID\":{\"S\":\"${LOCK_ID}\"}}" \
+            --output json || true)"
 
-          ITEM=$(aws dynamodb get-item --table-name "$TABLE" \
-            --key "{\"LockID\":{\"S\":\"$KEY\"}}" --output json || true)
+          # Lock 메타에 들어 있는 ID 추출 (없으면 빈 문자열)
+          ID="$(echo "${ITEM_JSON}" | jq -r '.Item.Info.S? | fromjson? | .ID // empty')"
 
-          ID=$(echo "$ITEM" | jq -r '.Item.Info.S? | fromjson? | .ID // empty')
-
-          if [ -n "$ID" ]; then
-            echo "Found stale lock with ID=$ID, unlocking..."
-            terraform force-unlock -force "$ID" || true
+          if [ -n "${ID}" ]; then
+            echo "Found stale lock ID=${ID} → force-unlock"
+            terraform force-unlock -force "${ID}" || true
           else
-            echo "No active lock found for $KEY"
+            echo "No active lock found for ${LOCK_ID}"
           fi
+      
       - name: Apply IAM & Lambda modules only
         working-directory: pipeline/Infra
         run: |
