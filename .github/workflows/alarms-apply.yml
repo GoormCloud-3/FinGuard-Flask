@@ -64,15 +64,46 @@ jobs:
         working-directory: Endpoint_Infra
         run: |
           terraform workspace select "${{ inputs.environment }}" || terraform workspace new "${{ inputs.environment }}"
+      
+      - name: Decide monitor envs by checking endpoint existence
+        id: decide
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          WS="${{ inputs.environment || 'dev' }}"
+          ENVS="[]"
+
+          case "$WS" in
+            staging) EP="${{ vars.ENDPOINT_STAGING }}" ;;
+            prod)    EP="${{ vars.ENDPOINT_PROD }}" ;;
+          *)       EP="" ;;
+          esac
+
+          if [ -n "$EP" ]; then
+            if aws sagemaker describe-endpoint --endpoint-name "$EP" >/dev/null 2>&1; then
+              ENVS="[\"$WS\"]"
+              echo "Endpoint '$EP' exists. Enabling monitor for $WS."
+            else
+              echo "Endpoint '$EP' not found. Skipping monitor for $WS."
+            fi
+          else
+            echo "No endpoint variable mapped for workspace '$WS'."
+          fi
+
+          echo "monitor_envs=$ENVS" >> $GITHUB_OUTPUT
 
       - name: Terraform plan
         if: ${{ inputs.mode == 'plan' }}
         working-directory: Endpoint_Infra
+        env:
+          TF_VAR_enable_monitor_envs: ${{ steps.decide.outputs.monitor_envs }}
         run: terraform plan -no-color -input=false -var-file="env/${{ inputs.environment }}.tfvars"
 
       - name: Terraform apply
         if: ${{ inputs.mode == 'apply' }}
         working-directory: Endpoint_Infra
+        env:
+          TF_VAR_enable_monitor_envs: ${{ steps.decide.outputs.monitor_envs }}
         run: terraform apply -auto-approve -no-color -input=false -var-file="env/${{ inputs.environment }}.tfvars"
 
       - name: Read alarm outputs (JSON)
