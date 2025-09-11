@@ -83,7 +83,7 @@ jobs:
             --alarm-latency "" \
             --instance-type "ml.m5.large" \
             --instance-count 1 \
-            --canary-percent 20 \
+            --canary-percent 0 \ # 20
             --canary-wait 300 \
             --termination-wait 120
 
@@ -118,8 +118,8 @@ jobs:
             --alarm-5xx "" \
             --alarm-latency "" \
             --instance-type "ml.m5.large" \
-            --instance-count 2 \
-            --canary-percent 10 \
-            --canary-wait 600 \
+            --instance-count 1 \  # 2
+            --canary-percent 0 \ # 10
+            --canary-wait 600 \   # 600
             --termination-wait 300
 
