@@ -14,6 +14,10 @@ on:
       model_package_arn:
         required: false
         type: string
+      ref:
+        required: false
+        type: string
+        default: ''
 
 permissions:
   id-token: write
@@ -23,7 +27,16 @@ jobs:
   deploy-staging:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (requested ref)
+        if: ${{ inputs.ref != '' }} 
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      
+      - name: Checkout (default)
+        if: ${{ inputs.ref == '' }}
+        uses: actions/checkout@v4
+      
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
