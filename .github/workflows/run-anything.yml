@@ -40,6 +40,10 @@ on:
         description: "Processing 인스턴스"
         required: false
         default: "ml.m5.xlarge"
+      dataset_type:
+        required: false
+        type: string
+        default: "csv"
         
 permissions:
   id-token: write    
