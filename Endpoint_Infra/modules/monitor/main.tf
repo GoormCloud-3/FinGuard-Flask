@@ -43,7 +43,7 @@ resource "aws_sagemaker_data_quality_job_definition" "dq" {
 
 # (2) Data Quality Monitoring Schedule (캡처된 데이터 점검)
 resource "aws_sagemaker_monitoring_schedule" "dq_schedule" {
-  monitoring_schedule_name = "${var.endpoint_name}-dq-schedule"
+  name = "${var.endpoint_name}-dq-schedule"
   monitoring_schedule_config {
     schedule_config { schedule_expression = var.schedule_expression }
     monitoring_job_definition_name = aws_sagemaker_data_quality_job_definition.dq.name
