@@ -63,9 +63,9 @@ jobs:
         run: |
           python .github/scripts/deploy_blue_green.py \
             --endpoint "${{ vars.ENDPOINT_STAGING }}" \
-            --package "${{ env.PKG }}" \
             --image   "${{ env.INFERENCE_IMAGE_URI }}" \
             --exec-role "${{ secrets.SAGEMAKER_EXEC_ROLE_ARN || vars.SAGEMAKER_EXEC_ROLE_ARN }}" \
+            --model-prefix "s3://finguard-model-artifacts/models/staging/" \
             --alarm-5xx  "" \
             --alarm-latency "" \
             --instance-type "ml.m5.large" \
@@ -99,9 +99,9 @@ jobs:
         run: |
           python .github/scripts/deploy_blue_green.py \
             --endpoint "${{ vars.ENDPOINT_PROD }}" \
-            --package "${{ env.PKG }}" \
             --image   "${{ env.INFERENCE_IMAGE_URI }}" \
             --exec-role "${{ secrets.SAGEMAKER_EXEC_ROLE_ARN || vars.SAGEMAKER_EXEC_ROLE_ARN }}" \
+            --model-prefix "s3://finguard-model-artifacts/models/prod/" \
             --alarm-5xx "" \
             --alarm-latency "" \
             --instance-type "ml.m5.large" \
