@@ -23,7 +23,15 @@ def lambda_handler(event, _ctx):
         "Authorization": f"Bearer {_token()}",
         "X-GitHub-Api-Version": "2022-11-28",
         "Content-Type": "application/json"
+        "User-Agent": "aws-lambda-repo-dispatch"
     })
-    with urllib.request.urlopen(req) as resp:
-        return {"status": resp.status, "package": pkg_arn}
-
+    try: 
+        with urllib.request.urlopen(req) as resp:
+            return {"status": resp.status, "package": pkg_arn}
+    except urllib.error.HTTPError as e:
+        return {
+            "status": e.code,
+            "reason": e.reason,
+            "body": e.read().decode(errors="ignore"),
+            "headers": dict(e.headers.items()),
+        }
