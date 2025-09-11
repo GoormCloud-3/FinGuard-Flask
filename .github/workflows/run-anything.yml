@@ -113,7 +113,7 @@ jobs:
 
   call-model-promotion:
     if: ${{ inputs.target == 'model-promotion' }}
-    uses: ./.github/workflows/model-promotion.yml
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/model-promotion.yml@suhyun
     with:
       model_package_arn: ${{ inputs.model_package_arn }}
     secrets: inherit
