@@ -60,6 +60,7 @@ resource "aws_cloudwatch_event_rule" "approved" {
     "source": ["aws.sagemaker"],
     "detail-type": ["SageMaker Model Package State Change"],
     "detail": {
+      "ModelPackageStatus": ["Created"],
       "ModelPackageGroupName": [var.model_package_group],
       "ModelApprovalStatus": ["Approved"]
     }
