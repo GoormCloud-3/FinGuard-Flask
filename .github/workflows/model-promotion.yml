@@ -8,6 +8,12 @@ on:
       model_package_arn:
         description: "Model Package ARN (비워두면 Registry에서 최신 Approved 자동 선택)"
         required: false
+  
+  workflow_call:
+    inputs:
+      model_package_arn:
+        required: false
+        type: string
 
 permissions:
   id-token: write
