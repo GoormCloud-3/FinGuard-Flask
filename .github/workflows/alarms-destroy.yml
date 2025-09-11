@@ -67,5 +67,5 @@ jobs:
         run: |
           set -Eeuo pipefail
           terraform destroy -auto-approve -no-color \
-            -target=module.endpoint_alarms
+            -target=module.endpoint_alarms -var-file="env/${{ inputs.environment }}.tfvars"
 
