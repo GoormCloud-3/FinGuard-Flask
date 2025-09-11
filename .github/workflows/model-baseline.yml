@@ -40,72 +40,80 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Run ProcessingJob for baseline (robust JSON)
+      - name: Generate baseline (robust)
+        env:
+          IMAGE:  ${{ vars.MONITOR_IMAGE_URI }}
+          ROLE:   ${{ secrets.SAGEMAKER_PROCESSING_ROLE_ARN || vars.SAGEMAKER_PROCESSING_ROLE_ARN }}
+          DATASET: ${{ inputs.dataset_s3 }}
+          BASELINE: ${{ inputs.baseline_prefix }}
+          ITYPE:   ${{ inputs.instance_type }}
         run: |
           set -Eeuo pipefail
 
-          IMAGE="${{ vars.MONITOR_IMAGE_URI }}"
-          ROLE="${{ secrets.SAGEMAKER_PROCESSING_ROLE_ARN || vars.SAGEMAKER_PROCESSING_ROLE_ARN }}"
-          DATASET="${{ inputs.dataset_s3 }}"
-          BASELINE="${{ inputs.baseline_prefix }}"
-          ITYPE="${{ inputs.instance_type }}"
+          # 0) 필수 env 점검
+          for v in IMAGE ROLE DATASET BASELINE ITYPE; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::Missing env $v"; exit 1
+            fi
+          done
+          if ! [[ "$BASELINE" =~ /$ ]]; then
+            echo "::error::baseline_prefix must end with /"; exit 1
+          fi
+
           JOB_NAME="dq-baseline-$(date +%Y%m%d-%H%M%S)"
 
-          # JSON 템플릿 생성 (정확한 JSON)
-          cat > /tmp/job.json <<'JSON'
-          {
-            "ProcessingJobName": "__JOB_NAME__",
-            "AppSpecification": {
-              "ImageUri": "__IMAGE__",
-              "ContainerArguments": ["baseline"]
+          # 1) 정확한 JSON을 jq로 생성 (sed/여분 brace/이스케이프 이슈 제거)
+          jq -n \
+            --arg job "$JOB_NAME" \
+            --arg image "$IMAGE" \
+            --arg role "$ROLE" \
+            --arg itype "$ITYPE" \
+            --arg dataset "$DATASET" \
+            --arg base "$BASELINE" \
+            '{
+              ProcessingJobName: $job,
+              AppSpecification: {
+              ImageUri: $image,
+              ContainerArguments: ["baseline"]
             },
-            "RoleArn": "__ROLE__",
-            "ProcessingResources": {
-              "ClusterConfig": {
-                "InstanceCount": 1,
-                "InstanceType": "__ITYPE__",
-                "VolumeSizeInGB": 30
+            RoleArn: $role,
+            ProcessingResources: {
+              ClusterConfig: {
+                InstanceCount: 1,
+                InstanceType: $itype,
+                VolumeSizeInGB: 30
               }
             },
-            "ProcessingInputs": [
+            ProcessingInputs: [
               {
-                "InputName": "dataset",
-                "S3Input": {
-                  "S3Uri": "__DATASET__",
-                  "LocalPath": "/opt/ml/processing/input",
-                  "S3DataType": "S3Prefix",
-                  "S3InputMode": "File"
+                InputName: "dataset",
+                S3Input: {
+                  S3Uri: $dataset,
+                  LocalPath: "/opt/ml/processing/input",
+                  S3DataType: "S3Prefix",
+                  S3InputMode: "File"
                 }
               }
             ],
-            "ProcessingOutputConfig": {
-              "Outputs": [
+            ProcessingOutputConfig: {
+              Outputs: [
                 {
-                  "OutputName": "baseline",
-                  "S3Output": {
-                    "S3Uri": "__BASELINE__dataquality/",
-                    "LocalPath": "/opt/ml/processing/output",
-                    "S3UploadMode": "EndOfJob"
+                  OutputName: "baseline",
+                  S3Output: {
+                    S3Uri: ($base + "dataquality/"),
+                    LocalPath: "/opt/ml/processing/output",
+                    S3UploadMode: "EndOfJob"
                   }
                 }
               ]
             },
-            "StoppingCondition": { "MaxRuntimeInSeconds": 3600 }
-            }
-            JSON
+            StoppingCondition: { MaxRuntimeInSeconds: 3600 }
+          }' >/tmp/job.json
 
-            # 변수 치환
-            sed -i "s|__JOB_NAME__|$JOB_NAME|g"   /tmp/job.json
-            sed -i "s|__IMAGE__|$IMAGE|g"         /tmp/job.json
-            sed -i "s|__ROLE__|$ROLE|g"           /tmp/job.json
-            sed -i "s|__ITYPE__|$ITYPE|g"         /tmp/job.json
-            sed -i "s|__DATASET__|$DATASET|g"     /tmp/job.json
-            sed -i "s|__BASELINE__|$BASELINE|g"   /tmp/job.json
+        echo "=== /tmp/job.json ==="
+        cat /tmp/job.json
 
-            cat /tmp/job.json
-
-            # 실행
-            aws sagemaker create-processing-job --cli-input-json file:///tmp/job.json
-
-            echo "Started ProcessingJob: $JOB_NAME"
+        # 2) 실행
+        aws sagemaker create-processing-job --cli-input-json file:///tmp/job.json
+        echo "✅ Started ProcessingJob: $JOB_NAME"
 
