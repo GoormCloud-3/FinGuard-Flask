@@ -11,7 +11,7 @@ locals {
   sagemaker_processing_role_arn = "arn:aws:iam::${local.account_id}:role/${var.sagemaker_processing_role_name}"
 
   # Model Monitor Analyzer Image URI (리전만 반영)
-  monitor_image_uri = "081325390199.dkr.ecr.${local.region}.amazonaws.com/sagemaker-model-monitor-analyzer:latest"
+  monitor_image_uri = "709848358524.dkr.ecr.${local.region}.amazonaws.com/sagemaker-model-monitor-analyzer:latest"
 
   envs = {
     staging = {
@@ -34,7 +34,7 @@ locals {
 
   monitor_envs = {
     for k, v in local.envs : k => v
-    if contains(var.enable_monitor_envs, k) && can(data.aws_sagemaker_endpoint.exists[k].arn)
+    if contains(var.enable_monitor_envs, k)
   }
 
 }
