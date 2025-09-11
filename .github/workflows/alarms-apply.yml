@@ -68,12 +68,12 @@ jobs:
       - name: Terraform plan
         if: ${{ inputs.mode == 'plan' }}
         working-directory: Endpoint_Infra
-        run: terraform plan -no-color
+        run: terraform plan -no-color -input=false -var-file="env/${{ inputs.environment }}.tfvars"
 
       - name: Terraform apply
         if: ${{ inputs.mode == 'apply' }}
         working-directory: Endpoint_Infra
-        run: terraform apply -auto-approve -no-color
+        run: terraform apply -auto-approve -no-color -input=false -var-file="env/${{ inputs.environment }}.tfvars"
 
       - name: Read alarm outputs (JSON)
         if: ${{ inputs.mode == 'apply' }}

@@ -1,4 +1,18 @@
+data "aws_caller_identity" "me" {}
+data "aws_region" "cur" {}
+
 locals {
+  account_id = data.aws_caller_identity.me.account_id
+  region     = data.aws_region.cur.name
+  # Secrets Manager ARN (이름만 받아서 여기서 ARN 생성)
+  github_pat_secret_arn = "arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:${var.github_pat_secret_name}"
+
+  # Processing Role ARN (이름만 받아서 여기서 ARN 생성)
+  sagemaker_processing_role_arn = "arn:aws:iam::${local.account_id}:role/${var.sagemaker_processing_role_name}"
+
+  # Model Monitor Analyzer Image URI (리전만 반영)
+  monitor_image_uri = "081325390199.dkr.ecr.${local.region}.amazonaws.com/sagemaker-model-monitor-analyzer:latest"
+
   envs = {
     staging = {
       endpoint_name      = "finguard-fraud-endpiont-staging"

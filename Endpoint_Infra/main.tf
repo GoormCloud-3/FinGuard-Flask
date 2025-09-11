@@ -14,7 +14,7 @@ module "gh_dispatch" {
   model_package_group  = var.model_package_group
   github_owner         = var.github_owner
   github_repo          = var.github_repo
-  github_secret_arn    = var.github_pat_secret_arn
+  github_secret_arn    = local.github_pat_secret_arn
 }
 
 # Model Monitor (Data/Model Quality)
@@ -27,12 +27,12 @@ module "endpoint_monitor" {
   reports_s3_prefix      = each.value.reports_s3_prefix
   baseline_s3_prefix     = each.value.baseline_s3_prefix
 
-  exec_role_arn          = var.sagemaker_processing_role_arn       # ProcessingJob
+  exec_role_arn          = local.sagemaker_processing_role_arn       # ProcessingJob
   instance_type          = "ml.m5.xlarge"
   instance_count         = 1
   schedule_expression    = "cron(0 * * * ? *)"   # per an hour
 
-  monitor_image_uri      = var.monitor_image_uri # Model Monitor image URI on region
+  monitor_image_uri      = local.monitor_image_uri # Model Monitor image URI on region
 
   enable_model_quality   = each.value.enable_mq
   ground_truth_s3_prefix = each.value.ground_truth_s3
