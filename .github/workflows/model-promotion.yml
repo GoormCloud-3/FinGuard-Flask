@@ -10,6 +10,6 @@ permissions:
 
 jobs:
   call-real-one:
-    uses: <OWNER>/<REPO>/.github/workflows/real.yml@your-feature-branch  # ★ 브랜치 지정
+    uses: GoormCloud-3/FinGuard-Flask/.github/workflows/model-promotion.yml@suhyun
     with:
       model_package_arn: ${{ github.event.client_payload.model_package_arn }}
