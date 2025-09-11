@@ -117,23 +117,23 @@ def deploy(endpoint_name, image_uri, model_data_url, model_prefix, exec_role,
 
     # ── 5) Blue/Green config
     if not exists:
-    # ── 5.1) 최초 생성 (Alarm/BlueGreen 불가)
-    sm.create_endpoint(EndpointName=endpoint_name, EndpointConfigName=cfg_name)
-    _wait_endpoint(endpoint_name, "InService")
-else:
-    # ── 5.2) 업데이트 배포 (Alarm + BlueGreen 가능)
-    cp = int(round(float(canary_percent)))
-    cp = max(1, min(100, cp))
-    deploy_cfg = {
-        "BlueGreenUpdatePolicy": {
-            "TrafficRoutingConfiguration": {
-                "Type": "CANARY",
-                "WaitIntervalInSeconds": int(canary_wait),
-                "CanarySize": {"Type": "CAPACITY_PERCENT", "Value": cp},
-            },
-            "TerminationWaitInSeconds": int(term_wait),
+        # ── 5.1) 최초 생성 (Alarm/BlueGreen 불가)
+        sm.create_endpoint(EndpointName=endpoint_name, EndpointConfigName=cfg_name)
+        _wait_endpoint(endpoint_name, "InService")
+    else:
+        # ── 5.2) 업데이트 배포 (Alarm + BlueGreen 가능)
+        cp = int(round(float(canary_percent)))
+        cp = max(1, min(100, cp))
+        deploy_cfg = {
+            "BlueGreenUpdatePolicy": {
+                "TrafficRoutingConfiguration": {
+                    "Type": "CANARY",
+                    "WaitIntervalInSeconds": int(canary_wait),
+                    "CanarySize": {"Type": "CAPACITY_PERCENT", "Value": cp},
+                },
+                "TerminationWaitInSeconds": int(term_wait),
+            }
         }
-    }
 
     alarms = []
     a5 = alarm5 or f"{endpoint_name}-5xx"
