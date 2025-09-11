@@ -46,7 +46,7 @@ resource "aws_sagemaker_monitoring_schedule" "dq_schedule" {
   monitoring_schedule_name = "${var.endpoint_name}-dq-schedule"
   monitoring_schedule_config {
     schedule_config { schedule_expression = var.schedule_expression }
-    monitoring_job_definition_name = aws_sagemaker_data_quality_job_definition.dq.job_definition_name
+    monitoring_job_definition_name = aws_sagemaker_data_quality_job_definition.dq.name
     monitoring_type = "DataQuality"
   }
 }
