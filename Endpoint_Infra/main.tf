@@ -34,7 +34,7 @@ module "endpoint_monitor" {
 
   monitor_image_uri      = local.monitor_image_uri # Model Monitor image URI on region
 
-  enable_model_quality   = each.value.enable_mq
-  ground_truth_s3_prefix = each.value.ground_truth_s3
-  problem_type           = "BinaryClassification"
+  # enable_model_quality   = each.value.enable_mq
+  # ground_truth_s3_prefix = each.value.ground_truth_s3
+  # problem_type           = "BinaryClassification"
 }
