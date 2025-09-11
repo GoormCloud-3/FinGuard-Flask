@@ -108,7 +108,8 @@ jobs:
               baseline_dataset=dataset,
               dataset_format=dformat,
               output_s3_uri=outpref + "dataquality/",
-              wait=False  # 비동기로 시작; 성공 시 constraints/statistics 생성
+              wait=False,  # 비동기로 시작; 성공 시 constraints/statistics 생성
+              logs=False
           )
 
           desc = job.describe()
