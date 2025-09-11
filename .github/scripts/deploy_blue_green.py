@@ -77,8 +77,8 @@ def deploy(endpoint_name, image_uri, model_data_url, model_prefix, exec_role,
 
     # ── 1) names
     suffix = str(int(time.time()))
-    model_name = f"{endpoint_name}-{suffix}"
-    cfg_name   = f"{endpoint_name}-{model_name}"
+    model_name = f"fraud-model-{suffix}"
+    cfg_name   = f"fraud-config-{suffix}"
 
     # ── 2) Model
     _ensure_create_model(model_name, image_uri, model_data_url, exec_role)
