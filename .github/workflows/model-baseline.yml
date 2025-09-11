@@ -32,91 +32,73 @@ permissions:
   contents: read
 
 jobs:
-  gen-baseline:
+  baseline:
     runs-on: ubuntu-latest
     steps:
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Generate baseline (robust)
-        env:
-          IMAGE:  ${{ vars.MONITOR_IMAGE_URI }}
-          ROLE:   ${{ secrets.SAGEMAKER_PROCESSING_ROLE_ARN || vars.SAGEMAKER_PROCESSING_ROLE_ARN }}
-          DATASET: ${{ inputs.dataset_s3 }}
-          BASELINE: ${{ inputs.baseline_prefix }}
-          ITYPE:   ${{ inputs.instance_type }}
+      - name: Install sagemaker SDK
         run: |
-          set -Eeuo pipefail
+          python3 -m pip install --upgrade pip
+          pip install "sagemaker>=2.249.0" boto3
 
-          # 0) 필수 env 점검
-          for v in IMAGE ROLE DATASET BASELINE ITYPE; do
-            if [ -z "${!v:-}" ]; then
-              echo "::error::Missing env $v"; exit 1
-            fi
-          done
-          if ! [[ "$BASELINE" =~ /$ ]]; then
-            echo "::error::baseline_prefix must end with /"; exit 1
-          fi
+      - name: Generate baseline with SageMaker SDK
+        env:
+          # Processing Job이 사용할 Role (권한: s3 Get/Put, logs, sagemaker:CreateProcessingJob 등)
+          SAGEMAKER_PROCESSING_ROLE_ARN: ${{ secrets.SAGEMAKER_PROCESSING_ROLE_ARN || vars.SAGEMAKER_PROCESSING_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          DATASET_S3: ${{ inputs.dataset_s3 }}
+          BASELINE_PREFIX: ${{ inputs.baseline_prefix }}
+          INSTANCE_TYPE: ${{ inputs.instance_type }}
+          DATASET_TYPE: ${{ inputs.dataset_type }}
+        run: |
+          python - <<'PY'
+          import os, sys
+          from sagemaker.model_monitor import DefaultModelMonitor
 
-          JOB_NAME="dq-baseline-$(date +%Y%m%d-%H%M%S)"
+          role_arn = os.environ.get("SAGEMAKER_PROCESSING_ROLE_ARN")
+          region   = os.environ["AWS_REGION"]
+          dataset  = os.environ["DATASET_S3"]
+          outpref  = os.environ["BASELINE_PREFIX"]
+          itype    = os.environ.get("INSTANCE_TYPE","ml.m5.xlarge")
+          dtype    = os.environ.get("DATASET_TYPE","csv").lower()
 
-          # 1) 정확한 JSON을 jq로 생성 (sed/여분 brace/이스케이프 이슈 제거)
-          jq -n \
-            --arg job "$JOB_NAME" \
-            --arg image "$IMAGE" \
-            --arg role "$ROLE" \
-            --arg itype "$ITYPE" \
-            --arg dataset "$DATASET" \
-            --arg base "$BASELINE" \
-            '{
-              ProcessingJobName: $job,
-              AppSpecification: {
-              ImageUri: $image,
-              ContainerArguments: ["baseline"]
-            },
-            RoleArn: $role,
-            ProcessingResources: {
-              ClusterConfig: {
-                InstanceCount: 1,
-                InstanceType: $itype,
-                VolumeSizeInGB: 30
-              }
-            },
-            Environment: {
-              dataset_format: "csv"
-            },
-            ProcessingInputs: [
-              {
-                InputName: "dataset",
-                S3Input: {
-                  S3Uri: $dataset,
-                  LocalPath: "/opt/ml/processing/input",
-                  S3DataType: "S3Prefix",
-                  S3InputMode: "File"
-                }
-              }
-            ],
-            ProcessingOutputConfig: {
-              Outputs: [
-                {
-                  OutputName: "baseline",
-                  S3Output: {
-                    S3Uri: ($base + "dataquality/"),
-                    LocalPath: "/opt/ml/processing/output",
-                    S3UploadMode: "EndOfJob"
-                  }
-                }
-              ]
-            },
-            StoppingCondition: { MaxRuntimeInSeconds: 3600 }
-          }' >/tmp/job.json
+          if not role_arn:
+            sys.exit("Missing SAGEMAKER_PROCESSING_ROLE_ARN (vars or secrets)")
+          if not (dataset.startswith("s3://")):
+            sys.exit("dataset_s3 must be an S3 URI")
+          if not (outpref.startswith("s3://") and outpref.endswith("/")):
+            sys.exit("baseline_prefix must be an S3 prefix ending with '/'")
+          if dtype not in ("csv","json"):
+            sys.exit("dataset_type must be 'csv' or 'json'")
 
-          echo "=== /tmp/job.json ==="
-          cat /tmp/job.json
+          # SDK가 리전에 맞는 analyzer 이미지/환경을 자동 설정
+          monitor = DefaultModelMonitor(
+              role=role_arn,
+              instance_count=1,
+              instance_type=itype,
+              volume_size_in_gb=30,
+              max_runtime_in_seconds=3600,
+          )
 
-          # 2) 실행
-          aws sagemaker create-processing-job --cli-input-json file:///tmp/job.json
-          echo "Started ProcessingJob: $JOB_NAME"
+          job = monitor.suggest_baseline(
+              dataset=dataset,
+              dataset_type=dtype,
+              output_s3_uri=outpref + "dataquality/",
+              wait=False  # 비동기로 시작; 성공 시 constraints/statistics 생성
+          )
 
+          desc = job.describe()
+          print("✅ Started ProcessingJob:", desc.get("ProcessingJobArn"))
+          PY
+
+      - name: Echo next steps
+        run: |
+          echo "Baseline ProcessingJob을 시작했습니다."
+          echo "완료되면 ${BASELINE_PREFIX}dataquality/ 아래에 constraints.json, statistics.json 이 생성됩니다."
