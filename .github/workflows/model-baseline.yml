@@ -110,10 +110,10 @@ jobs:
             StoppingCondition: { MaxRuntimeInSeconds: 3600 }
           }' >/tmp/job.json
 
-        echo "=== /tmp/job.json ==="
-        cat /tmp/job.json
+          echo "=== /tmp/job.json ==="
+          cat /tmp/job.json
 
-        # 2) 실행
-        aws sagemaker create-processing-job --cli-input-json file:///tmp/job.json
-        echo "✅ Started ProcessingJob: $JOB_NAME"
+          # 2) 실행
+          aws sagemaker create-processing-job --cli-input-json file:///tmp/job.json
+          echo "Started ProcessingJob: $JOB_NAME"
 
