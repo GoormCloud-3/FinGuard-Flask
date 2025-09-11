@@ -15,7 +15,7 @@ locals {
 
   envs = {
     staging = {
-      endpoint_name      = "finguard-fraud-endpiont-staging"
+      endpoint_name      = "finguard-fraud-endpoint-staging"
       capture_s3_prefix  = "s3://finguard-model-artifacts/datacapture/staging/"
       reports_s3_prefix  = "s3://finguard-model-artifacts/monitor-reports/staging/"
       baseline_s3_prefix = "s3://finguard-model-artifacts/monitor-baseline/staging/"
@@ -30,6 +30,11 @@ locals {
       enable_mq          = true            # if want to evaluate label, true
       ground_truth_s3    = "s3://finguard-model-artifacts/ground-truth/prod/" 
     }
+  }
+
+  monitor_envs = {
+    for k, v in local.envs : k => v
+    if contains(var.enable_monitor_envs, k)
   }
 }
 

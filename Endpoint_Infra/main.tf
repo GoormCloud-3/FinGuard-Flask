@@ -15,12 +15,14 @@ module "gh_dispatch" {
   github_owner         = var.github_owner
   github_repo          = var.github_repo
   github_secret_arn    = local.github_pat_secret_arn
+
+  function_name = "gh-sm-dispatch-on-approve-${terraform.workspace}"
 }
 
 # Model Monitor (Data/Model Quality)
 module "endpoint_monitor" {
   source   = "./modules/monitor"
-  for_each = local.envs
+  for_each = local.monitor_envs
 
   endpoint_name          = each.value.endpoint_name
   capture_s3_prefix      = each.value.capture_s3_prefix
