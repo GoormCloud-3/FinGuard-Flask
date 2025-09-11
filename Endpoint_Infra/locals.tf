@@ -1,9 +1,5 @@
 data "aws_caller_identity" "me" {}
 data "aws_region" "cur" {}
-data "aws_sagemaker_endpoint" "exists" {
-  for_each = local.envs
-  name     = each.value.endpoint_name
-}
 
 locals {
   account_id = data.aws_caller_identity.me.account_id
