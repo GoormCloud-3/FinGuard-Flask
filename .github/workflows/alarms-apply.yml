@@ -53,6 +53,8 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
 
       - name: Terraform init (shared backend)
         working-directory: Endpoint_Infra
@@ -61,21 +63,20 @@ jobs:
       - name: Select workspace
         working-directory: Endpoint_Infra
         run: |
-          terraform workspace select "${{ inputs.environment }}" \
-            || terraform workspace new "${{ inputs.environment }}"
+          terraform workspace select "${{ inputs.environment }}" || terraform workspace new "${{ inputs.environment }}"
 
       - name: Terraform plan
-        if: ${{ github.event.inputs.mode == 'plan' }}
+        if: ${{ inputs.mode == 'plan' }}
         working-directory: Endpoint_Infra
         run: terraform plan -no-color
 
       - name: Terraform apply
-        if: ${{ github.event.inputs.mode == 'apply' }}
+        if: ${{ inputs.mode == 'apply' }}
         working-directory: Endpoint_Infra
         run: terraform apply -auto-approve -no-color
 
       - name: Read alarm outputs (JSON)
-        if: ${{ github.event.inputs.mode == 'apply' }}
+        if: ${{ inputs.mode == 'apply' }}
         id: tfout
         working-directory: Endpoint_Infra
         run: |
@@ -85,7 +86,7 @@ jobs:
           echo "WROTE alarm_outputs.json"
 
       - name: Upload outputs artifact
-        if: ${{ github.event.inputs.mode == 'apply' }}
+        if: ${{ inputs.mode == 'apply' }}
         uses: actions/upload-artifact@v4
         with:
           name: alarm-outputs

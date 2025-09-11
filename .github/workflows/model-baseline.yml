@@ -44,9 +44,9 @@ jobs:
         run: |
           IMAGE="${{ vars.MONITOR_IMAGE_URI }}"  # Model Monitor Analyzer 이미지 URI
           ROLE="${{ secrets.SAGEMAKER_PROCESSING_ROLE_ARN || vars.SAGEMAKER_PROCESSING_ROLE_ARN }}"
-          DATASET="${{ github.event.inputs.dataset_s3 }}"
-          BASELINE="${{ github.event.inputs.baseline_prefix }}"
-          ITYPE="${{ github.event.inputs.instance_type }}"
+          DATASET="${{ inputs.dataset_s3 }}"
+          BASELINE="${{ inputs.baseline_prefix }}"
+          ITYPE="${{ inputs.instance_type }}"
 
           JOB_NAME="dq-baseline-$(date +%Y%m%d-%H%M%S)"
 

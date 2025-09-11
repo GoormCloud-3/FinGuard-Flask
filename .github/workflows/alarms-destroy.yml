@@ -49,6 +49,8 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
 
       - name: Terraform init (shared backend)
         working-directory: Endpoint_Infra
@@ -57,8 +59,7 @@ jobs:
       - name: Select workspace
         working-directory: Endpoint_Infra
         run: |
-          terraform workspace select "${{ inputs.environment }}" \
-            || terraform workspace new "${{ inputs.environment }}"
+          terraform workspace select "${{ inputs.environment }}" || terraform workspace new "${{ inputs.environment }}"
 
       # for_each 모듈이라면 target=module.endpoint_alarms 로 전체 삭제 가능
       - name: Terraform destroy (alarms only)
