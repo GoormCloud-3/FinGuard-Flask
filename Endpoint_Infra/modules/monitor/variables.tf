@@ -17,16 +17,16 @@ variable "schedule_expression"    {
 } # per hour
 variable "monitor_image_uri"      { type = string }  # region별 Model Monitor 이미지 URI
 # ---- ModelQuality Option (if label exists) ----
-variable "enable_model_quality"   { 
-  type = bool     
-  default = false 
-}
-variable "ground_truth_s3_prefix" { 
-  type = string   
-  default = "" 
-}  # label site
-variable "problem_type"           { 
-  type = string   
-  default = "BinaryClassification" 
-} # or Multiclass, Regression
+# variable "enable_model_quality"   { 
+#   type = bool     
+#   default = false 
+# }
+# variable "ground_truth_s3_prefix" { 
+#   type = string   
+#   default = "" 
+# }  # label site
+# variable "problem_type"           { 
+#   type = string   
+#   default = "BinaryClassification" 
+# } # or Multiclass, Regression
 

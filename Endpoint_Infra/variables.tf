@@ -17,4 +17,8 @@ variable "ops_sns_topic_arn"   {
 variable "sagemaker_processing_role_name" { 
   type = string 
 }
+variable "monitor_image_uri" { 
+  type = string 
+}
+
 
