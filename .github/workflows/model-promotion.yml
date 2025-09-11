@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
     inputs:
       model_package_arn:
-        description: "Model Package ARN (수동 실행)"
-        required: true
+        description: "Model Package ARN (비워두면 Registry에서 최신 Approved 자동 선택)"
+        required: false
 
 permissions:
   id-token: write
@@ -27,16 +27,28 @@ jobs:
         run: pip install boto3
 
       - name: Resolve model package arn
+        id: resolve
         run: |
-          if [ -n "${{ github.event.client_payload.model_package_arn }}" ]; then
+          if [ -n "${{ inputs.model_package_arn }}" ]; then
+            echo "PKG=${{ inputs.model_package_arn }}" >> $GITHUB_ENV
+          elif [ -n "${{ github.event.client_payload.model_package_arn }}" ]; then
             echo "PKG=${{ github.event.client_payload.model_package_arn }}" >> $GITHUB_ENV
           else
-            echo "PKG=${{ inputs.model_package_arn }}" >> $GITHUB_ENV
+            echo "Auto-detecting latest Approved model..."
+            ARN=$(aws sagemaker list-model-packages \
+              --model-package-group-name "${{ vars.MODEL_PACKAGE_GROUP }}" \
+              --query "ModelPackageSummaryList[?ModelApprovalStatus=='Approved']|[0].ModelPackageArn" \
+              --output text)
+            if [ "$ARN" = "None" ]; then
+              echo "❌ No Approved model found in Registry"
+              exit 1
+            fi
+            echo "PKG=$ARN" >> $GITHUB_ENV
           fi
-    
+
       - name: Compose inference image URI
         run: |
-          echo "INFERENCE_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/finguard/pipeline-serving" >> $GITHUB_ENV
+          echo "INFERENCE_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/finguard/pipeline-serving" >> $GITHUB_ENV
 
       - name: Deploy to STAGING (Blue/Green Canary)
         env:
@@ -56,16 +68,10 @@ jobs:
             --canary-wait 300 \
             --termination-wait 120
 
-      # smoke test (simple)
-      - name: Wait few seconds
-        run: sleep 10
-      - name: Smoke test placeholder
-        run: echo "call your health-check here"
-
   promote-prod:
     needs: [deploy-staging]
     runs-on: ubuntu-latest
-    environment: production  # ← need manual approve
+    environment: production   # ← 여기서 수동 승인 필요
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
@@ -78,7 +84,7 @@ jobs:
 
       - name: Compose inference image URI
         run: |
-          echo "INFERENCE_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/finguard/pipeline-serving" >> $GITHUB_ENV
+          echo "INFERENCE_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/finguard/pipeline-serving" >> $GITHUB_ENV
 
       - name: Deploy to PROD (Blue/Green + AutoRollback)
         env: 

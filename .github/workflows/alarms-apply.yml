@@ -65,32 +65,11 @@ jobs:
         run: |
           terraform workspace select "${{ inputs.environment }}" || terraform workspace new "${{ inputs.environment }}"
       
-      - name: Decide monitor envs by checking endpoint existence
+      - name: Decide monitor envs (simple)
         id: decide
-        shell: bash
         run: |
-          set -Eeuo pipefail
           WS="${{ inputs.environment || 'dev' }}"
-          ENVS="[]"
-
-          case "$WS" in
-            staging) EP="${{ vars.ENDPOINT_STAGING }}" ;;
-            prod)    EP="${{ vars.ENDPOINT_PROD }}" ;;
-          *)       EP="" ;;
-          esac
-
-          if [ -n "$EP" ]; then
-            if aws sagemaker describe-endpoint --endpoint-name "$EP" >/dev/null 2>&1; then
-              ENVS="[\"$WS\"]"
-              echo "Endpoint '$EP' exists. Enabling monitor for $WS."
-            else
-              echo "Endpoint '$EP' not found. Skipping monitor for $WS."
-            fi
-          else
-            echo "No endpoint variable mapped for workspace '$WS'."
-          fi
-
-          echo "monitor_envs=$ENVS" >> $GITHUB_OUTPUT
+          echo 'monitor_envs=["'"$WS"'"]' >> $GITHUB_OUTPUT
 
       - name: Terraform plan
         if: ${{ inputs.mode == 'plan' }}
@@ -121,5 +100,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: alarm-outputs
-          path: infra/alarm_outputs.json
+          path: Endpont_Infra/alarm_outputs.json
 

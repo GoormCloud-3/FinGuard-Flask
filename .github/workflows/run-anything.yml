@@ -13,9 +13,11 @@ on:
           - serving-image
           - destroy-infra
           - destroy-pipeline
+          - baseline-generate
+          - model-promotion
           - alarms-apply
           - alarms-destroy
-          - baseline-generate
+
       environment:
         description: "환경(dev/prod 등)"
         required: false
@@ -41,9 +43,13 @@ on:
         required: false
         default: "ml.m5.xlarge"
       dataset_type:
+        description: "type of data format (csv or json)"
         required: false
-        type: string
         default: "csv"
+      model_package_arn:
+        description: "Model Promotion 시 필요한 모델 패키지 ARN"
+        required: false
+        default: ""
 
 permissions:
   id-token: write 
@@ -110,4 +116,11 @@ jobs:
       dataset_s3: ${{ inputs.dataset_s3 }}
       baseline_prefix: ${{ inputs.baseline_prefix }}
       instance_type: ${{ inputs.instance_type }}
+    secrets: inherit
+
+  call-model-promotion:             
+    if: ${{ inputs.target == 'model-promotion' }}
+    uses: ./.github/workflows/model-promotion.yml
+    with:
+      model_package_arn: ${{ inputs.model_package_arn }}
     secrets: inherit
