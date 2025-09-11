@@ -41,8 +41,8 @@ on:
         required: false
         default: "ml.m5.xlarge"
       dataset_type:
+        description: "데이터 형식 (csv | json)"
         required: false
-        type: string
         default: "csv"
         
 permissions:
