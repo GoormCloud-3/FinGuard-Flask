@@ -68,7 +68,7 @@ jobs:
         run: |
           python - <<'PY'
           import os, sys
-          from sagemaker.model_monitor import DefaultModelMonitor
+          from sagemaker.model_monitor import DefaultModelMonitor, DatasetFormat
 
           role_arn = os.environ.get("SAGEMAKER_PROCESSING_ROLE_ARN")
           region   = os.environ["AWS_REGION"]
@@ -94,10 +94,19 @@ jobs:
               volume_size_in_gb=30,
               max_runtime_in_seconds=3600,
           )
-
+          
+          # SDK가 요구하는 DatasetFormat 생성
+          if dtype == "csv":
+              dformat = DatasetFormat.csv(header=False)
+          elif dtype == "json":
+          # JSON Lines 형태일 때
+              dformat = DatasetFormat.json(lines=True)
+          else:
+              raise ValueError("dataset_type must be 'csv' or 'json'")
+          
           job = monitor.suggest_baseline(
-              dataset=dataset,
-              dataset_type=dtype,
+              baseline_dataset=dataset,
+              dataset_format=dformat,
               output_s3_uri=outpref + "dataquality/",
               wait=False  # 비동기로 시작; 성공 시 constraints/statistics 생성
           )
