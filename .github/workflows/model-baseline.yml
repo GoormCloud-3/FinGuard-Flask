@@ -83,7 +83,7 @@ jobs:
           outpref  = os.environ["BASELINE_PREFIX"]
           itype    = os.environ.get("INSTANCE_TYPE","ml.m5.xlarge")
           dtype    = os.environ.get("DATASET_TYPE","csv").lower()
-          job_name = os.enviton["JOB_NAME"]
+          job_name = os.environ["JOB_NAME"]
 
           if not role_arn:
             sys.exit("Missing SAGEMAKER_PROCESSING_ROLE_ARN (vars or secrets)")
