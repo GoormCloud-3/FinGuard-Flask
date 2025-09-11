@@ -121,19 +121,19 @@ def deploy(endpoint_name, image_uri, model_data_url, model_prefix, exec_role,
     al = alarm_latency or f"{endpoint_name}-latency-p95"
     if a5: alarms.append({"AlarmName": a5})
     if al: alarms.append({"AlarmName": al})
-    deploy_cfg = {
-        "BlueGreenUpdatePolicy": {
-            "TrafficRoutingConfiguration": {
-                "Type": "CANARY",
-                "WaitIntervalInSeconds": int(canary_wait),
-                "CanarySize": {"Type": "CAPACITY_PERCENT", "Value": float(canary_percent)},
-            },
-            "TerminationWaitInSeconds": int(term_wait),
-        }
-    }
-    if alarms:
-        deploy_cfg["AutoRollbackConfiguration"] = {"Alarms": alarms}
+    cp = int(round(float(canary_percent)))
+    cp = max(1, min(50, cp))  # 최소 1~최대 100로 클램프(혹은 5~50로 제한하려면 max(5, min(50, cp)))
 
+    deploy_cfg = {
+      "BlueGreenUpdatePolicy": {
+        "TrafficRoutingConfiguration": {
+            "Type": "CANARY",
+            "WaitIntervalInSeconds": int(canary_wait),
+            "CanarySize": {"Type": "CAPACITY_PERCENT", "Value": cp},  # ← int!
+        },
+        "TerminationWaitInSeconds": int(term_wait),
+       }
+    }
     # ── 6) Create or Update
     if not exists:
         sm.create_endpoint(EndpointName=endpoint_name, EndpointConfigName=cfg_name)
