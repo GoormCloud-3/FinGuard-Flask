@@ -1,12 +1,23 @@
 # .github/scripts/deploy_blue_green.py
-import argparse, os, time, boto3
+import argparse
+import os
+import time
 from urllib.parse import urlparse
+
+import boto3
 from botocore.exceptions import ClientError
 
 sm = boto3.client("sagemaker")
 s3 = boto3.client("s3")
 
-def _wait_endpoint(endpoint_name, status="InService", timeout=7200, poll=20):
+
+# ---------- Utilities ----------
+def _now_suffix() -> str:
+    return str(int(time.time()))
+
+
+def _wait_endpoint(endpoint_name: str, status: str = "InService", timeout: int = 7200, poll: int = 20):
+    """Poll until endpoint reaches desired status."""
     end = time.time() + timeout
     while time.time() < end:
         resp = sm.describe_endpoint(EndpointName=endpoint_name)
@@ -18,38 +29,50 @@ def _wait_endpoint(endpoint_name, status="InService", timeout=7200, poll=20):
         time.sleep(poll)
     raise TimeoutError(f"Timeout: {endpoint_name} not {status}")
 
-def _latest_model_tar(s3_prefix: str) -> str:
+
+def _latest_model_tar(s3_prefix: str, require_suffix: str = "/output/model.tar.gz") -> str:
     """
-    s3_prefix: e.g. s3://finguard-model-artifacts/models/staging/
-    returns:   e.g. s3://finguard-model-artifacts/models/staging/2025-09-11-120455/model.tar.gz
+    s3_prefix: e.g. s3://finguard-model-artifacts/model/
+    returns:   e.g. s3://.../pipelines-.../output/model.tar.gz (latest by LastModified)
     """
     u = urlparse(s3_prefix)
     if u.scheme != "s3" or not u.netloc:
         raise ValueError(f"Invalid S3 prefix: {s3_prefix}")
     bucket = u.netloc
     prefix = u.path.lstrip("/")
-    # list & pick latest *.tar.gz
+
     paginator = s3.get_paginator("list_objects_v2")
     latest = None
     for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
         for obj in page.get("Contents", []):
             key = obj["Key"]
-            if not key.endswith(".tar.gz"):
+            if not key.endswith(require_suffix):
                 continue
             if (latest is None) or (obj["LastModified"] > latest["LastModified"]):
                 latest = obj
+
     if not latest:
-        raise FileNotFoundError(f"No *.tar.gz under {s3_prefix}")
+        # Debug hints (last 20 keys)
+        hints = []
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            hints.extend(page.get("Contents", []))
+        hints = sorted(hints, key=lambda x: x["LastModified"], reverse=True)[:20]
+        print("No matches. Recent keys under prefix:")
+        for h in hints:
+            print(h["Key"])
+        raise FileNotFoundError(f"No *{require_suffix} under {s3_prefix}")
+
     return f"s3://{bucket}/{latest['Key']}"
 
-def _ensure_create_model(model_name, image_uri, model_data_url, exec_role):
+
+def _ensure_create_model(model_name: str, image_uri: str, model_data_url: str, exec_role: str):
+    """Create Model if not exists (idempotent)."""
     container = {
         "Image": image_uri,
         "ModelDataUrl": model_data_url,
         "Environment": {
-            # 필요시 사용자 환경변수 추가
-            "SAGEMAKER_PROGRAM": "serve.py",
-            "SAGEMAKER_REGION": os.environ.get("AWS_REGION", "")
+            "SAGEMAKER_PROGRAM": "serve.py",  # 엔트리포인트
+            "SAGEMAKER_REGION": os.environ.get("AWS_REGION", ""),
         },
     }
     try:
@@ -60,42 +83,60 @@ def _ensure_create_model(model_name, image_uri, model_data_url, exec_role):
         )
     except ClientError as e:
         msg = str(e)
-        # 이미 존재하면 통과
         if e.response["Error"]["Code"] == "ValidationException" and "Already exists" in msg:
             return
         raise
 
-def deploy(endpoint_name, image_uri, model_data_url, model_prefix, exec_role,
-           alarm5, alarm_latency, instance_type, instance_count,
-           canary_percent, canary_wait, term_wait):
 
-    # ── 0) model.tar.gz auto resolve if prefix given
+def _unique_names(endpoint_name: str):
+    suffix = _now_suffix()
+    model_name = f"fraud-model-{suffix}"
+    cfg_name = f"fraud-cfg-{suffix}"
+    return model_name, cfg_name
+
+
+# ---------- Main deploy ----------
+def deploy(
+    endpoint_name: str,
+    image_uri: str,
+    model_data_url: str,
+    model_prefix: str,
+    exec_role: str,
+    alarm5: str,
+    alarm_latency: str,
+    instance_type: str,
+    instance_count: int,
+    canary_percent: int,
+    canary_wait: int,
+    term_wait: int,
+):
+    # 0) resolve model tar
     if not model_data_url and model_prefix:
-        model_data_url = _latest_model_tar(model_prefix)
+        model_data_url = _latest_model_tar(model_prefix, require_suffix="/output/model.tar.gz")
     if not model_data_url:
         raise ValueError("One of --model-data-url or --model-prefix is required")
 
-    # ── 1) names
-    suffix = str(int(time.time()))
-    model_name = f"fraud-model-{suffix}"
-    cfg_name   = f"fraud-config-{suffix}"
+    # 1) names
+    model_name, cfg_name = _unique_names(endpoint_name)
 
-    # ── 2) Model
+    # 2) Model
     _ensure_create_model(model_name, image_uri, model_data_url, exec_role)
 
-    # ── 3) EndpointConfig (DataCapture on)
+    # 3) EndpointConfig (with DataCapture)
     capture_s3 = os.environ.get("CAPTURE_S3_URI")
     if not capture_s3:
         raise ValueError("CAPTURE_S3_URI env is required")
     sm.create_endpoint_config(
         EndpointConfigName=cfg_name,
-        ProductionVariants=[{
-            "VariantName": "AllTraffic",
-            "ModelName": model_name,
-            "InitialInstanceCount": int(instance_count),
-            "InstanceType": instance_type,
-            "InitialVariantWeight": 1.0
-        }],
+        ProductionVariants=[
+            {
+                "VariantName": "AllTraffic",
+                "ModelName": model_name,
+                "InitialInstanceCount": int(instance_count),
+                "InstanceType": instance_type,
+                "InitialVariantWeight": 1.0,
+            }
+        ],
         DataCaptureConfig={
             "EnableCapture": True,
             "InitialSamplingPercentage": 100,
@@ -105,7 +146,7 @@ def deploy(endpoint_name, image_uri, model_data_url, model_prefix, exec_role,
         },
     )
 
-    # ── 4) Endpoint exists?
+    # 4) endpoint existence
     exists = True
     try:
         sm.describe_endpoint(EndpointName=endpoint_name)
@@ -115,29 +156,31 @@ def deploy(endpoint_name, image_uri, model_data_url, model_prefix, exec_role,
         else:
             raise
 
-    # ── 5) Blue/Green config
     if not exists:
-        # ── 5.1) 최초 생성 (Alarm/BlueGreen 불가)
+        # 5) first-time create (no BG/alarms)
         sm.create_endpoint(EndpointName=endpoint_name, EndpointConfigName=cfg_name)
         _wait_endpoint(endpoint_name, "InService")
-    else:
-        # ── 5.2) 업데이트 배포 (Alarm + BlueGreen 가능)
-        cp = int(round(float(canary_percent)))
-        cp = max(1, min(100, cp))
-        deploy_cfg = {
-            "BlueGreenUpdatePolicy": {
-                "TrafficRoutingConfiguration": {
-                    "Type": "CANARY",
-                    "WaitIntervalInSeconds": int(canary_wait),
-                    "CanarySize": {"Type": "CAPACITY_PERCENT", "Value": cp},
-                },
-                "TerminationWaitInSeconds": int(term_wait),
-            }
+        print(f"[create] endpoint={endpoint_name}, cfg={cfg_name}, model={model_name}, data={model_data_url}")
+        return
+
+    # 6) update with Blue/Green + AutoRollback(alarms)
+    cp = int(canary_percent)
+    cp = max(1, min(100, cp))
+
+    deploy_cfg = {
+        "BlueGreenUpdatePolicy": {
+            "TrafficRoutingConfiguration": {
+                "Type": "CANARY",
+                "WaitIntervalInSeconds": int(canary_wait),
+                "CanarySize": {"Type": "CAPACITY_PERCENT", "Value": cp},
+            },
+            "TerminationWaitInSeconds": int(term_wait),
         }
+    }
 
     alarms = []
-    a5 = alarm5 or f"{endpoint_name}-5xx"
-    al = alarm_latency or f"{endpoint_name}-latency-p95"
+    a5 = (alarm5 or f"{endpoint_name}-5xx").strip()
+    al = (alarm_latency or f"{endpoint_name}-latency-p95").strip()
     if a5:
         alarms.append({"AlarmName": a5})
     if al:
@@ -147,27 +190,28 @@ def deploy(endpoint_name, image_uri, model_data_url, model_prefix, exec_role,
 
     sm.update_endpoint(
         EndpointName=endpoint_name,
-        EndpointConfigName=cfg_name,   # 반드시 새로운 이름
-        DeploymentConfig=deploy_cfg
+        EndpointConfigName=cfg_name,  # must be a new config name
+        DeploymentConfig=deploy_cfg,
     )
     _wait_endpoint(endpoint_name, "InService")
+    print(f"[update] endpoint={endpoint_name}, cfg={cfg_name}, model={model_name}, data={model_data_url}, canary={cp}%")
+
 
 if __name__ == "__main__":
-    import time
-    p = argparse.ArgumentParser()
-    p.add_argument("--endpoint", required=True)
-    p.add_argument("--image", required=True, help="ECR image URI")
-    p.add_argument("--model-data-url", required=False, help="S3 URI to model.tar.gz")
-    p.add_argument("--model-prefix", required=False, help="S3 prefix to search latest tar.gz (e.g. s3://bucket/path/)")
-    p.add_argument("--exec-role", required=True)
-    p.add_argument("--alarm-5xx", dest="alarm_5xx", default="")
-    p.add_argument("--alarm-latency", default="")
-    p.add_argument("--instance-type", default="ml.m5.large")
-    p.add_argument("--instance-count", default="1")
-    p.add_argument("--canary-percent", default="10")
-    p.add_argument("--canary-wait", default="600")
-    p.add_argument("--termination-wait", default="300")
-    args = p.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--endpoint", required=True)
+    ap.add_argument("--image", required=True, help="ECR image URI")
+    ap.add_argument("--model-data-url", required=False, help="S3 URI to model.tar.gz")
+    ap.add_argument("--model-prefix", required=False, help="S3 prefix to search latest tar.gz (e.g. s3://bucket/path/)")
+    ap.add_argument("--exec-role", required=True)
+    ap.add_argument("--alarm-5xx", dest="alarm_5xx", default="")
+    ap.add_argument("--alarm-latency", default="")
+    ap.add_argument("--instance-type", default="ml.m5.large")
+    ap.add_argument("--instance-count", type=int, default=1)
+    ap.add_argument("--canary-percent", type=int, default=10)
+    ap.add_argument("--canary-wait", type=int, default=600)
+    ap.add_argument("--termination-wait", type=int, default=300)
+    args = ap.parse_args()
 
     deploy(
         endpoint_name=args.endpoint,
