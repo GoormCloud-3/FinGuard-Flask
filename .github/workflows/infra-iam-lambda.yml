@@ -61,8 +61,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           PREFIX="sm-infra"
-          TABLE="terraform-lock"
           KEY_PATH="${PREFIX}/${WS}/infra.tfstate"
+          LOCK_ID="${TFSTATE_BUCKET}/${KEY_PATH}"
+
           echo "Looking for lock: table=${TF_LOCK_TABLE}, LockID=${LOCK_ID}"
           
           ITEM_JSON="$(aws dynamodb get-item \
