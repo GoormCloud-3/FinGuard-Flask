@@ -13,6 +13,10 @@ on:
         description: "Processing 인스턴스 타입"
         required: false
         default: "ml.m5.xlarge"
+      dataset_type:
+        description: "데이터 형식(csv | json)"
+        required: false
+        default: "csv"
 
   workflow_call:                      
     inputs:
@@ -26,6 +30,10 @@ on:
         required: false
         type: string
         default: "ml.m5.xlarge"
+      dataset_type:
+        description: "데이터 형식(csv | json)"
+        required: false
+        default: "csv"
 
 permissions:
   id-token: write
