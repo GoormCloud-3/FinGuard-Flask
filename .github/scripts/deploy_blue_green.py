@@ -21,26 +21,28 @@ def ensure_autoscaling(endpoint_name: str,
                        target_value: float = 70.0,
                        scale_in_cooldown: int = 300,
                        scale_out_cooldown: int = 120):
-    """SageMaker 실시간 엔드포인트(버전트)에 타깃 추적 오토스케일링 설정/갱신"""
+    """
+    SageMaker 실시간 엔드포인트(버전트)에 타깃 추적 오토스케일링 설정/갱신
+    """
     resource_id = f"endpoint/{endpoint_name}/variant/{variant_name}"
 
     # 1) 스케일 대상 등록 (idempotent)
     aas.register_scalable_target(
-        service_namespace="sagemaker",
-        resource_id=resource_id,
-        scalable_dimension="sagemaker:variant:DesiredInstanceCount",
-        min_capacity=min_cap,
-        max_capacity=max_cap,
+        ServiceNamespace="sagemaker",
+        ResourceId=resource_id,
+        ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+        MinCapacity=min_cap,
+        MaxCapacity=max_cap,
     )
 
     # 2) 타깃 추적 정책 (InvocationsPerInstance 기준)
     aas.put_scaling_policy(
-        service_namespace="sagemaker",
-        resource_id=resource_id,
-        scalable_dimension="sagemaker:variant:DesiredInstanceCount",
-        policy_name="sagemaker-rti-target-tracking",
-        policy_type="TargetTrackingScaling",
-        target_tracking_scaling_policy_configuration={
+        ServiceNamespace="sagemaker",
+        ResourceId=resource_id,
+        ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+        PolicyName="sagemaker-rti-target-tracking",
+        PolicyType="TargetTrackingScaling",
+        TargetTrackingScalingPolicyConfiguration={
             "TargetValue": target_value,
             "PredefinedMetricSpecification": {
                 "PredefinedMetricType": "SageMakerVariantInvocationsPerInstance"
@@ -50,7 +52,6 @@ def ensure_autoscaling(endpoint_name: str,
         },
     )
     print(f"[autoscaling] {resource_id} min={min_cap} max={max_cap} target={target_value}")
-
 
 def _now_suffix() -> str:
     return str(int(time.time()))
