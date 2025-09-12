@@ -142,29 +142,31 @@ def ensure_autoscaling(endpoint_name: str,
 
 def _build_deploy_cfg(canary_percent: int, canary_wait: int, term_wait: int, instance_count: int):
     """instance_count와 canary_percent에 따라 Blue/Green 라우팅 타입 결정"""
+    wait = int(canary_wait)
     use_canary = (canary_percent is not None) and (int(canary_percent) > 0) and (int(instance_count) >= 2)
 
     if use_canary:
-        cfg = {
-            "BlueGreenUpdatePolicy": {
-                "TrafficRoutingConfiguration": {
-                    "Type": "CANARY",
-                    "WaitIntervalInSeconds": int(canary_wait),
-                    "CanarySize": {"Type": "CAPACITY_PERCENT", "Value": int(canary_percent)},
-                },
-                "TerminationWaitInSeconds": int(term_wait),
-            }
+        traffic = {
+            "Type": "CANARY",
+            "WaitIntervalInSeconds": wait,
+            "CanarySize": {"Type": "CAPACITY_PERCENT", "Value": int(canary_percent)},
         }
     else:
-        cfg = {
-            "BlueGreenUpdatePolicy": {
-                "TrafficRoutingConfiguration": {"Type": "ALL_AT_ONCE"},
-                "TerminationWaitInSeconds": int(term_wait),
-            }
+        # ⚠️ ALL_AT_ONCE여도 WaitIntervalInSeconds 필요
+        traffic = {
+            "Type": "ALL_AT_ONCE",
+            "WaitIntervalInSeconds": wait,  # 0~600 등 합리적 값. 현재 전달된 canary_wait 재사용
         }
 
-    routing_type = cfg["BlueGreenUpdatePolicy"]["TrafficRoutingConfiguration"]["Type"]
-    print(f"[bluegreen] routing={routing_type}, instance_count={instance_count}, canary_percent={canary_percent}")
+    cfg = {
+        "BlueGreenUpdatePolicy": {
+            "TrafficRoutingConfiguration": traffic,
+            "TerminationWaitInSeconds": int(term_wait),
+        }
+    }
+
+    routing_type = traffic["Type"]
+    print(f"[bluegreen] routing={routing_type}, instance_count={instance_count}, canary_percent={canary_percent}, wait={wait}")
     return cfg
 
 
