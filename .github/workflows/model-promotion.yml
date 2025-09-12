@@ -98,7 +98,16 @@ jobs:
     runs-on: ubuntu-latest
     environment: production   # ← 여기서 수동 승인 필요
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (requested ref)
+        if: ${{ inputs.ref != '' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Checkout (default)
+        if: ${{ inputs.ref == '' }}
+        uses: actions/checkout@v4
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
