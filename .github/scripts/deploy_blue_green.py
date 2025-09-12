@@ -12,6 +12,46 @@ s3 = boto3.client("s3")
 
 
 # ---------- Utilities ----------
+aas = boto3.client("application-autoscaling")
+
+def ensure_autoscaling(endpoint_name: str,
+                       variant_name: str = "AllTraffic",
+                       min_cap: int = 2,
+                       max_cap: int = 6,
+                       target_value: float = 70.0,
+                       scale_in_cooldown: int = 300,
+                       scale_out_cooldown: int = 120):
+    """SageMaker 실시간 엔드포인트(버전트)에 타깃 추적 오토스케일링 설정/갱신"""
+    resource_id = f"endpoint/{endpoint_name}/variant/{variant_name}"
+
+    # 1) 스케일 대상 등록 (idempotent)
+    aas.register_scalable_target(
+        service_namespace="sagemaker",
+        resource_id=resource_id,
+        scalable_dimension="sagemaker:variant:DesiredInstanceCount",
+        min_capacity=min_cap,
+        max_capacity=max_cap,
+    )
+
+    # 2) 타깃 추적 정책 (InvocationsPerInstance 기준)
+    aas.put_scaling_policy(
+        service_namespace="sagemaker",
+        resource_id=resource_id,
+        scalable_dimension="sagemaker:variant:DesiredInstanceCount",
+        policy_name="sagemaker-rti-target-tracking",
+        policy_type="TargetTrackingScaling",
+        target_tracking_scaling_policy_configuration={
+            "TargetValue": target_value,
+            "PredefinedMetricSpecification": {
+                "PredefinedMetricType": "SageMakerVariantInvocationsPerInstance"
+            },
+            "ScaleInCooldown": scale_in_cooldown,
+            "ScaleOutCooldown": scale_out_cooldown,
+        },
+    )
+    print(f"[autoscaling] {resource_id} min={min_cap} max={max_cap} target={target_value}")
+
+
 def _now_suffix() -> str:
     return str(int(time.time()))
 
@@ -161,6 +201,16 @@ def deploy(
         sm.create_endpoint(EndpointName=endpoint_name, EndpointConfigName=cfg_name)
         _wait_endpoint(endpoint_name, "InService")
         print(f"[create] endpoint={endpoint_name}, cfg={cfg_name}, model={model_name}, data={model_data_url}")
+
+        ensure_autoscaling(
+            endpoint_name,
+            variant_name=args.as_variant,
+            min_cap=args.as_min,
+            max_cap=args.as_max,
+            target_value=args.as_target,
+            scale_in_cooldown=args.as_cooldown_in,
+            scale_out_cooldown=args.as_cooldown_out,
+        )
         return
 
     # 6) update with Blue/Green + AutoRollback(alarms)
@@ -196,6 +246,17 @@ def deploy(
     _wait_endpoint(endpoint_name, "InService")
     print(f"[update] endpoint={endpoint_name}, cfg={cfg_name}, model={model_name}, data={model_data_url}, canary={cp}%")
 
+    ensure_autoscaling(
+        endpoint_name,
+        variant_name=args.as_variant,
+        min_cap=args.as_min,
+        max_cap=args.as_max,
+        target_value=args.as_target,
+        scale_in_cooldown=args.as_cooldown_in,
+        scale_out_cooldown=args.as_cooldown_out,
+    )
+    print(f"[update] endpoint={endpoint_name}, cfg={cfg_name}, model={model_name}, data={model_data_url}, canary={cp}%")
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -211,6 +272,13 @@ if __name__ == "__main__":
     ap.add_argument("--canary-percent", type=int, default=10)
     ap.add_argument("--canary-wait", type=int, default=600)
     ap.add_argument("--termination-wait", type=int, default=300)
+    ap.add_argument("--as-variant", default=os.getenv("AS_VARIANT", "AllTraffic"))
+    ap.add_argument("--as-min", type=int, default=int(os.getenv("AS_MIN", 2)))
+    ap.add_argument("--as-max", type=int, default=int(os.getenv("AS_MAX", 6)))
+    ap.add_argument("--as-target", type=float, default=float(os.getenv("AS_TARGET", 70)))
+    ap.add_argument("--as-cooldown-in", type=int, default=int(os.getenv("AS_COOLDOWN_IN", 300)))
+    ap.add_argument("--as-cooldown-out", type=int, default=int(os.getenv("AS_COOLDOWN_OUT", 120)))
+
     args = ap.parse_args()
 
     deploy(

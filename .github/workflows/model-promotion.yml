@@ -73,6 +73,12 @@ jobs:
         env:
           CAPTURE_S3_URI: s3://finguard-model-artifacts/datacapture/staging/
           INFERENCE_IMAGE_URI: ${{ env.INFERENCE_IMAGE_URI }}
+          AS_VARIANT: AllTraffic
+          AS_MIN: "1"
+          AS_MAX: "3"
+          AS_TARGET: "70"
+          AS_COOLDOWN_IN: "300"
+          AS_COOLDOWN_OUT: "120"
         run: |
           python .github/scripts/deploy_blue_green.py \
             --endpoint "${{ vars.ENDPOINT_STAGING }}" \
@@ -109,6 +115,12 @@ jobs:
         env: 
           CAPTURE_S3_URI: s3://finguard-model-artifacts/datacapture/prod/
           INFERENCE_IMAGE_URI: ${{ env.INFERENCE_IMAGE_URI }}
+          AS_VARIANT: AllTraffic
+          AS_MIN: "1"
+          AS_MAX: "3"
+          AS_TARGET: "70"
+          AS_COOLDOWN_IN: "300"
+          AS_COOLDOWN_OUT: "120"
         run: |
           python .github/scripts/deploy_blue_green.py \
             --endpoint "${{ vars.ENDPOINT_PROD }}" \
